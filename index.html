@@ -99,7 +99,7 @@ h1{font-family:var(--px);font-size:clamp(18px,4.6vw,26px);line-height:1.3;margin
   bottom:max(12px,env(safe-area-inset-bottom));width:min(94%,640px);background:rgba(12,24,16,.95);color:#f3ecd2;
   border:2px solid #5d8a55;border-radius:14px;padding:10px 12px}
 #dhead{display:flex;gap:12px;align-items:flex-start}
-#dport{width:64px;height:64px;flex:none;background:#3f7a35;border-radius:8px;image-rendering:pixelated;image-rendering:crisp-edges}
+#dport{width:72px;height:72px;flex:none;background:#3f7a35;border-radius:8px;image-rendering:pixelated;image-rendering:crisp-edges}
 #dbody{flex:1;min-width:0}
 #dname{font-family:var(--px);font-size:10px;line-height:1.4;margin-bottom:7px;color:#f0c987}
 #dtext{font-size:16px;line-height:1.45;min-height:4.4em}
@@ -161,7 +161,7 @@ h1{font-family:var(--px);font-size:clamp(18px,4.6vw,26px);line-height:1.3;margin
     <p class="sub">Make your kit, then explore camp and pounce on moths.</p>
     <div class="grid">
       <section class="stage" aria-label="Your cat">
-        <div class="preview"><canvas id="pv" width="48" height="16" aria-label="Preview of your cat from the front, side and back"></canvas></div>
+        <div class="preview"><canvas id="pv" width="96" height="32" aria-label="Preview of your cat from the front, side and back"></canvas></div>
         <div class="namebox">
           <label for="nm">Name (we add "kit" for you)</label>
           <div class="nrow"><input id="nm" maxlength="10" autocomplete="off" autocapitalize="words" spellcheck="false"><span id="suf">kit</span></div>
@@ -198,7 +198,7 @@ h1{font-family:var(--px);font-size:clamp(18px,4.6vw,26px);line-height:1.3;margin
   <button id="swipe" type="button">Swipe</button>
   <div id="dlg" role="dialog" aria-live="polite">
     <div id="dhead">
-      <canvas id="dport" width="24" height="24"></canvas>
+      <canvas id="dport" width="48" height="48"></canvas>
       <div id="dbody"><div id="dname"></div><div id="dtext"></div></div>
     </div>
     <div id="dchoices"></div>
@@ -213,6 +213,7 @@ h1{font-family:var(--px);font-size:clamp(18px,4.6vw,26px);line-height:1.3;margin
 (function(){
 'use strict';
 
+/* MODULE src_30_core.js: error reporting, page helpers, cat maker options, colours and palette. */
 /* ---------- error display (helps when testing on a device) ---------- */
 const errBox=document.getElementById('err');
 let errTimer=null;
@@ -225,7 +226,6 @@ function noteError(msg,where){
 window.addEventListener('error',function(e){noteError(e.message||'unknown','line '+(e.lineno||'?'));});
 
 const $=function(s){return document.querySelector(s);};
-const MAPS={"down":{"head":["................","...bb......bb...","...bib....bib...","...bbbbbbbbbb...","...bbpbbbbpbb...","...bbbebbebbb...","...bbbbnnbbbb...","....bbbwwbbb....","....bbbbbbbb....","....bpbkkbpb....","....bbbkkbbb....","....bbbbbbbb...."],"legs":[[".....kk..kk.....",".....kk..kk....."],[".....kk..kk.....",".....kk........."],[".....kk..kk.....",".........kk....."]],"extra":[]},"up":{"head":["................","...bb......bb...","...bbb....bbb...","...bbbbbbbbbb...","...bbbbbbbbbb...","...bbpbbbbpbb...","...bbbbbbbbbb...","....bbpbbpbb....","....bpbbbbpb....","....bbbqqbbb....","....bpbbbbpb....","....bbbbbbbb...."],"legs":[[".....kkbbkk.....",".....kkppkk....."],[".....kkbbkk.....",".....kkpp......."],[".....kkbbkk.....",".......ppkk....."]],"extra":[]},"side":{"head":["................","................",".........b...b..",".........bibbib.",".........bbpbbb.",".........bbbbeb.",".........bbbbwn.","...bpbbpbbbbbww.","..bbpbbpbbbbbb..","..bbbqqbbbbkkb..","..bbbbbbbbbbkb..","...bbbbbbbbbb..."],"legs":[["....kk....kk....","....kk....kk...."],["....kk....kk....","...kk......kk..."],["....kk....kk....",".....kk..kk....."]],"extra":[[2,7,"b"],[1,6,"b"],[1,5,"p"],[1,4,"b"],[2,3,"p"]]}};
 
 /* ---------- options ---------- */
 const FUR=[
@@ -254,96 +254,200 @@ function palette(cfg){
   P.p=pat==='Tabby'?dark:fur;
   P.q=pat==='Bicolor'?alt:(pat==='Tortie'?patch:fur);
   P.k=(pat==='Socks'||pat==='Bicolor')?white:fur;
+  P.d=mix(fur,'#000000',0.22);   // shade: far legs, under the belly, cheek whisker dots
+  P.h='#fffdf2';                  // eye sparkle
   return P;
 }
 
+/* MODULE src_31_sprites.js: drawing the 32 pixel kit and the 48 pixel apprentice and adult cats (double resolution, drawn by code). */
 /* ---------- sprite drawing ---------- */
-function frameGrid(dir,li){
-  const m=MAPS[dir];
-  const rows=m.head.concat(m.legs[li]);
-  const g=[];
-  for(let y=0;y<16;y++){g.push((rows[y]||'').padEnd(16,'.').split(''));}
-  (m.extra||[]).forEach(function(e){g[e[1]][e[0]]=e[2];});
-  return g;
-}
-function drawFrame(ctx,ox,oy,dir,li,P){
-  const g=frameGrid(dir,li);
-  for(let y=0;y<16;y++){for(let x=0;x<16;x++){
-    const c=g[y][x];
-    if(c!=='.'){ctx.fillStyle=P[c]||P.b;ctx.fillRect(ox+x,oy+y,1,1);}
-  }}
-  ctx.fillStyle=P.o;
-  for(let y=0;y<16;y++){for(let x=0;x<16;x++){
-    if(g[y][x]!=='.')continue;
-    if((x>0&&g[y][x-1]!=='.')||(x<15&&g[y][x+1]!=='.')||(y>0&&g[y-1][x]!=='.')||(y<15&&g[y+1][x]!=='.')){
-      ctx.fillRect(ox+x,oy+y,1,1);
-    }
-  }}
-}
-function buildSheet(cfg){
-  const P=palette(cfg);
-  const cv=document.createElement('canvas');cv.width=16*9;cv.height=16;
-  const ctx=cv.getContext('2d');
-  ['down','up','side'].forEach(function(d,di){
-    for(let li=0;li<3;li++){drawFrame(ctx,(di*3+li)*16,0,d,li,P);}
-  });
-  return cv;
-}
-
-/* ---------- bigger cats (apprentices and adults) ---------- */
-function bigGrid(dir,li){
-  const S=24,g=[];
-  for(let y=0;y<S;y++){const r=[];for(let x=0;x<S;x++)r.push('.');g.push(r);}
-  const put=function(x,y,c){if(x>=0&&x<S&&y>=0&&y<S)g[y][x]=c;};
-  const rect=function(x,y,w,h,c){for(let j=0;j<h;j++){for(let i=0;i<w;i++)put(x+i,y+j,c);}};
-  const ellg=function(cx,cy,rx,ry,c){
+const KIT_S=32,BIG_S=48;
+/* Rounds half way values to the even number, so the curved tail and ear lines come out exactly as approved in the drafts. */
+function evenRound(v){const f=Math.floor(v),d=v-f;if(d===0.5)return(f%2===0)?f:f+1;return Math.round(v);}
+/* A small drawing kit for one square grid of pixel letters. */
+function gridKit(S){
+  const g=[];for(let y=0;y<S;y++){g.push(new Array(S).fill('.'));}
+  const K={g:g};
+  K.put=function(x,y,c){if(x>=0&&x<S&&y>=0&&y<S)g[y][x]=c;};
+  K.get=function(x,y){return(x>=0&&x<S&&y>=0&&y<S)?g[y][x]:'.';};
+  K.rect=function(x,y,w,h,c){for(let j=0;j<h;j++){for(let i=0;i<w;i++)K.put(x+i,y+j,c);}};
+  K.ell=function(cx,cy,rx,ry,c,only){
     for(let y=Math.floor(cy-ry);y<=Math.ceil(cy+ry);y++){
       for(let x=Math.floor(cx-rx);x<=Math.ceil(cx+rx);x++){
         const dx=(x+0.5-cx)/rx,dy=(y+0.5-cy)/ry;
-        if(dx*dx+dy*dy<=1)put(x,y,c);
+        if(dx*dx+dy*dy<=1&&(only===undefined||K.get(x,y)===only))K.put(x,y,c);
       }
     }
   };
-  const swap=function(x,y,from,to){if(x>=0&&x<S&&y>=0&&y<S&&g[y][x]===from)g[y][x]=to;};
-  if(dir==='side'){
-    const a=li===1?1:(li===2?-1:0);
-    rect(13-a,18,2,5,'b');rect(8+a,18,2,5,'b');          // far legs
-    rect(1,11,3,2,'b');rect(0,8,2,4,'b');rect(1,5,2,4,'b'); // tail
-    ellg(11.5,14,8.5,5,'b');                              // body
-    ellg(18.5,9.5,5,4.5,'b');                             // head
-    rect(16+a,18,2,5,'b');rect(5-a,18,2,5,'b');          // near legs
-    put(17,2,'b');rect(16,3,3,2,'b');put(21,2,'b');rect(20,3,3,2,'b');
-    put(17,4,'i');put(21,4,'i');
-    put(21,8,'e');rect(22,10,2,2,'w');put(23,9,'n');
-    rect(16+a,21,2,2,'k');rect(5-a,21,2,2,'k');rect(13-a,21,2,2,'k');rect(8+a,21,2,2,'k');
-    rect(19,13,2,3,'k');rect(5,11,4,2,'q');
-    [6,9,12,15].forEach(function(x){for(let y=9;y<=12;y++)swap(x,y,'b','p');});
-    swap(17,5,'b','p');swap(19,5,'b','p');swap(21,6,'b','p');
-    swap(0,9,'b','p');swap(1,9,'b','p');swap(1,6,'b','p');swap(2,6,'b','p');
-  }else{
-    const a=li===1?1:0,b=li===2?1:0;
-    ellg(12,16,6,5.5,'b');                                // body
-    rect(8,18,2,4+a,'b');rect(14,18,2,4+b,'b');          // legs
-    ellg(12,8,6,5,'b');                                   // head
-    put(7,0,'b');rect(6,1,3,3,'b');put(16,0,'b');rect(15,1,3,3,'b');
-    rect(8,20+a,2,2,'k');rect(14,20+b,2,2,'k');
-    if(dir==='down'){
-      put(7,2,'i');put(16,2,'i');put(7,1,'i');put(16,1,'i');
-      rect(9,8,2,1,'e');rect(13,8,2,1,'e');
-      rect(11,10,2,1,'n');rect(10,11,4,2,'w');
-      rect(11,15,2,4,'k');
-      swap(11,4,'b','p');swap(12,4,'b','p');swap(9,5,'b','p');swap(14,5,'b','p');
-      swap(7,14,'b','p');swap(16,14,'b','p');swap(7,17,'b','p');swap(16,17,'b','p');
-    }else{
-      rect(11,13,2,8,'b');                                // tail hanging down the back
-      swap(11,15,'b','p');swap(12,15,'b','p');swap(11,18,'b','p');swap(12,18,'b','p');
-      rect(9,13,6,2,'q');
-      swap(11,4,'b','p');swap(12,4,'b','p');swap(9,5,'b','p');swap(14,5,'b','p');
-      swap(7,12,'b','p');swap(16,12,'b','p');swap(7,16,'b','p');swap(16,16,'b','p');swap(9,10,'b','p');swap(14,10,'b','p');
+  K.tri=function(a,b,c,col){
+    const sg=function(p,q,r){return(p[0]-r[0])*(q[1]-r[1])-(q[0]-r[0])*(p[1]-r[1]);};
+    for(let y=0;y<S;y++){for(let x=0;x<S;x++){
+      const p=[x+0.5,y+0.5],d1=sg(p,a,b),d2=sg(p,b,c),d3=sg(p,c,a);
+      const neg=d1<0||d2<0||d3<0,pos=d1>0||d2>0||d3>0;
+      if(!(neg&&pos))K.put(x,y,col);
+    }}
+  };
+  K.swap=function(x,y,from,to){if(K.get(x,y)===from)K.put(x,y,to);};
+  K.stripe=function(x,y,w,h){for(let j=0;j<h;j++){for(let i=0;i<w;i++)K.swap(x+i,y+j,'b','p');}};
+  K.line=function(x0,y0,x1,y1,c,r){
+    r=r||0;
+    const n=Math.floor(Math.max(Math.abs(x1-x0),Math.abs(y1-y0)))*2+1;
+    for(let k=0;k<=n;k++){
+      const t=k/n,x=x0+(x1-x0)*t,y=y0+(y1-y0)*t;
+      for(let j=-r;j<=r;j++){for(let i=-r;i<=r;i++){
+        if(i*i+j*j<=r*r+r*0.5)K.put(evenRound(x)+i,evenRound(y)+j,c);
+      }}
     }
-  }
-  return g;
+  };
+  K.path=function(pts,c,r){for(let i=0;i<pts.length-1;i++)K.line(pts[i][0],pts[i][1],pts[i+1][0],pts[i+1][1],c,r);};
+  K.clear=function(x,y,w,h){K.rect(x,y,w,h,'.');};
+  return K;
 }
+/* Fills the small gaps where an ear meets the head, so ear and head are one shape. */
+function attachEars(K,pairs,mirror){
+  pairs.forEach(function(p){[p[0],mirror-p[0]].forEach(function(xx){if(K.get(xx,p[1])==='.')K.put(xx,p[1],'b');});});
+}
+
+/* ---------- the kit: 32 x 32, feet on row 27 ---------- */
+function frameGrid(dir,li){
+  const K=gridKit(KIT_S);
+  const lifL=li===1?1:0,lifR=li===2?1:0;   // walking (back view): one foot is lifted a little
+  const lf2=li===1?2:0,rf2=li===2?2:0;     // walking (front view): a bigger lift, the front feet are easier to see
+  const s=li===1?2:(li===2?-2:0);          // side view: legs swing
+  if(dir==='down'){
+    K.ell(16,21.5,7,6,'b');
+    K.rect(11,22,4,6-lf2,'b');K.rect(17,22,4,6-rf2,'b');K.rect(15,24,2,4,'d');
+    K.ell(16,12,10,8.5,'b');K.ell(16,14.5,10.8,5,'b');
+    K.tri([5,9],[5.5,1.8],[13,5],'b');K.tri([27,9],[26.5,1.8],[19,5],'b');
+    K.tri([7,7.5],[7,3.5],[11,5.5],'i');K.tri([25,7.5],[25,3.5],[21,5.5],'i');
+    K.ell(16,21,3,4.5,'k');
+    K.rect(10,25-lf2,5,3,'k');K.rect(17,25-rf2,5,3,'k');
+    K.ell(16,16.5,3.3,2.2,'w');
+    [9,19].forEach(function(ex){
+      K.rect(ex,10,4,4,'e');
+      if(ex===9){K.rect(ex+2,10,1,4,'o');K.put(ex+1,11,'h');}
+      else{K.rect(ex+1,10,1,4,'o');K.put(ex+2,11,'h');}
+    });
+    K.rect(15,15,2,1,'n');
+    [[15,17],[16,17],[14,18],[17,18],[13,17],[18,17]].forEach(function(p){K.put(p[0],p[1],'o');});
+    [[7,16],[6,17],[24,16],[25,17]].forEach(function(p){K.put(p[0],p[1],'d');});
+    K.stripe(15,5,2,4);K.stripe(12,6,1,3);K.stripe(19,6,1,3);
+    [12,14].forEach(function(y){K.stripe(5,y,2,1);K.stripe(25,y,2,1);});
+    [20,23].forEach(function(y){K.stripe(9,y,2,1);K.stripe(21,y,2,1);});
+    K.ell(21,7,2.5,1.8,'q','b');
+    attachEars(K,[[6,8]],31);
+  }else if(dir==='side'){
+    K.path([[7,20],[4,19],[2,16],[2,12]],'b',1);
+    K.line(2,13,2,11,'k',1);
+    K.rect(18-s,22,3,6,'d');K.rect(11+s,22,3,6,'d');
+    K.ell(13.5,20.5,9,5.5,'b');
+    K.ell(9,22.5,4.5,4.8,'b');K.rect(7-s,24,4,4,'b');
+    K.rect(19+s,23,4,5,'b');
+    K.ell(21,12,8.5,7.5,'b');
+    K.tri([14,7],[15.5,1.6],[21,5],'b');K.tri([20,4.5],[25,1.8],[27,8],'b');
+    K.tri([16,5.5],[16.5,2.5],[19.5,4.5],'i');K.tri([22,4.5],[25,2.5],[25.5,6.5],'i');
+    K.ell(26.5,15,3.6,2.8,'w');
+    K.rect(6-s,25,4,3,'k');K.rect(19+s,25,5,3,'k');K.rect(11+s,26,3,2,'d');
+    K.rect(24,10,4,4,'e');K.rect(26,10,1,4,'o');K.put(24,11,'h');
+    K.rect(29,13,2,2,'n');K.put(28,16,'o');K.put(27,17,'o');
+    K.put(25,17,'d');K.put(25,15,'d');
+    [6,9,12,15].forEach(function(x){K.stripe(x,16,2,5);});
+    [18,21].forEach(function(x){K.stripe(x,5,1,3);});
+    K.stripe(24,6,1,3);
+    [12,15].forEach(function(y){K.stripe(1,y,3,1);});
+    K.ell(11,17,3,2,'q','b');
+  }else{
+    K.ell(16,20.5,8.5,6.5,'b');
+    K.ell(11,24,4.5,4.5,'b');K.ell(21,24,4.5,4.5,'b');
+    K.rect(10,24,4,4-lifL,'b');K.rect(18,24,4,4-lifR,'b');
+    K.rect(10,26-lifL,4,2,'k');K.rect(18,26-lifR,4,2,'k');
+    if(lifL)K.clear(9,27,5,1);
+    if(lifR)K.clear(18,27,5,1);
+    K.ell(16,12,10,8.5,'b');
+    K.tri([5,9],[5.5,1.8],[13,5],'b');K.tri([27,9],[26.5,1.8],[19,5],'b');
+    K.tri([8,7],[8,3.5],[11,5.5],'d');K.tri([24,7],[24,3.5],[21,5.5],'d');
+    K.stripe(15,5,2,5);K.stripe(12,6,1,4);K.stripe(19,6,1,4);
+    [17,19,21,23].forEach(function(y){K.stripe(10,y,4,1);K.stripe(18,y,4,1);});
+    K.ell(20,18,2.5,2,'q','b');
+    /* the tail seen from behind: a short S curve with its own dark lines */
+    const tail=[[16,25],[16,24],[15,22],[14.5,20],[14.5,18.5],[15.5,17],[17.5,16.5],[18.5,17.5]];
+    K.path(tail,'o',2);K.path(tail,'b',1);
+    K.line(17.5,16.5,18.5,17.5,'k',0);
+    attachEars(K,[[6,8]],31);
+  }
+  return K.g;
+}
+
+/* ---------- the apprentice and adult: 48 x 48, feet on row 45 ---------- */
+function bigGrid(dir,li){
+  const K=gridKit(BIG_S);
+  const lifL=li===1?2:0,lifR=li===2?2:0;   // walking: one foot is lifted a little
+  const s=li===1?2:(li===2?-2:0);          // side view: legs swing
+  const ears=[[17,9],[15,10],[13,11],[14,11],[12,12],[13,12],[14,12],[13,13]];
+  if(dir==='down'){
+    K.ell(24,31.5,8.5,9.5,'b');K.ell(24,36,9,4.5,'b');
+    K.rect(17,36,5,10-lifL,'b');K.rect(26,36,5,10-lifR,'b');
+    K.rect(22,39,4,7,'d');
+    K.ell(24,17,10.5,9.5,'b');K.ell(24,21,11.5,5,'b');
+    K.tri([12,12],[12.5,1.6],[22,7],'b');K.tri([36,12],[35.5,1.6],[26,7],'b');
+    K.tri([14,10],[14,3.5],[19.5,7.5],'i');K.tri([34,10],[34,3.5],[28.5,7.5],'i');
+    K.ell(24,31,3.5,6,'k');
+    K.rect(17,42-lifL,5,4,'k');K.rect(26,42-lifR,5,4,'k');
+    K.ell(24,22.6,4.6,3,'w');
+    [16,27].forEach(function(ex){K.rect(ex,14,5,5,'e');K.rect(ex+2,14,1,5,'o');K.put(ex+1,15,'h');K.put(ex+3,18,'d');});
+    K.rect(23,19,2,2,'n');
+    [[23,21],[24,21],[22,22],[21,22],[25,22],[26,22],[20,21],[27,21]].forEach(function(p){K.put(p[0],p[1],'o');});
+    [[13,21],[12,23],[15,23],[34,21],[35,23],[32,23]].forEach(function(p){K.put(p[0],p[1],'d');});
+    K.stripe(23,8,2,5);K.stripe(19,9,1,4);K.stripe(28,9,1,4);K.stripe(16,10,1,3);K.stripe(31,10,1,3);
+    [17,19,21].forEach(function(y){K.stripe(10,y,3,1);K.stripe(35,y,3,1);});
+    [30,33,36].forEach(function(y){K.stripe(16,y,3,1);K.stripe(29,y,3,1);});
+    [39,41].forEach(function(y){K.stripe(17,y-lifL,5,1);K.stripe(26,y-lifR,5,1);});
+    K.ell(31,10,3,2.2,'q','b');K.ell(30,35,2.2,3.2,'q','b');
+    attachEars(K,ears,47);
+  }else if(dir==='side'){
+    K.path([[9,28],[6,27],[3,24],[2,20],[2,16],[3,12],[5,9]],'b',1);
+    K.line(3,11,5,8,'k',1);
+    K.rect(28-s,35,4,11,'d');K.rect(19+s,35,4,11,'d');     // far legs
+    K.ell(22,29.5,14.5,6.3,'b');
+    K.ell(32,30.5,4.5,6,'b');
+    K.ell(13,33,5.5,6,'b');K.rect(11-s,37,4,9,'b');       // near back leg
+    K.rect(30+s,35,4,11,'b');                              // near front leg
+    K.ell(35,17.5,9.5,8.5,'b');
+    K.tri([27,12],[29.5,1.6],[36,8],'b');K.tri([34,9],[40,2.2],[43,11],'b');
+    K.tri([29.5,10],[30,4.5],[34,8],'i');K.tri([37,9],[40,4.5],[41.5,10],'i');
+    K.ell(42.5,21,4.5,3.2,'w');K.ell(38,22.5,7,4,'b','.');
+    K.rect(11-s,42,4,4,'k');K.rect(30+s,42,4,4,'k');
+    K.ell(32.5,33,2,3.5,'k');
+    K.rect(38,14,5,5,'e');K.rect(41,14,1,5,'o');K.put(39,15,'h');K.put(38,18,'d');
+    K.rect(46,19,2,2,'n');[[45,22],[44,23],[43,23],[42,22]].forEach(function(p){K.put(p[0],p[1],'o');});
+    [[40,22],[41,23],[40,24]].forEach(function(p){K.put(p[0],p[1],'d');});
+    [9,13,17,21,25].forEach(function(x){K.stripe(x,24,2,6);});
+    K.stripe(12,32,2,4);
+    [30,33,36].forEach(function(x){K.stripe(x,9,1,4);});
+    K.stripe(41,9,1,3);
+    [11,15,19,23].forEach(function(y){K.stripe(1,y,4,1);});
+    K.ell(19,26.5,4,2,'q','b');K.ell(3,21,1.5,2.5,'q','b');
+    if(K.get(40,10)==='.')K.put(40,10,'b');
+  }else{
+    K.ell(24,30.5,9.5,10.5,'b');K.ell(24,36.5,9.5,4.5,'b');
+    K.rect(16,39,6,7-lifL,'b');K.rect(26,39,6,7-lifR,'b');
+    K.rect(16,43-lifL,6,3,'k');K.rect(26,43-lifR,6,3,'k');
+    K.ell(24,17,10.5,9.5,'b');
+    K.tri([12,12],[12.5,1.6],[22,7],'b');K.tri([36,12],[35.5,1.6],[26,7],'b');
+    K.tri([15,9],[14.5,4],[19,7],'d');K.tri([33,9],[33.5,4],[29,7],'d');
+    K.stripe(23,7,2,6);K.stripe(19,8,1,5);K.stripe(28,8,1,5);K.stripe(15,10,1,4);K.stripe(32,10,1,4);
+    [24,27,30,33,36].forEach(function(y){K.stripe(15,y,5,1);K.stripe(28,y,5,1);});
+    K.ell(30,27,3.5,2.8,'q','b');K.ell(17,14,3,2.4,'q','b');
+    /* the tail seen from behind: an S curve rising over the back, drawn with its own dark lines */
+    const tail=[[24,42],[24,39],[22.5,36],[21.5,33],[21.5,30],[23,27.5],[25.5,27],[26.5,28.5]];
+    K.path(tail,'o',2);K.path(tail,'b',1);
+    K.line(25.5,27,26.5,28.5,'k',1);
+    attachEars(K,ears,47);
+  }
+  return K.g;
+}
+
+/* Paints one grid onto a canvas at pixel size 1, then adds the dark outline around it. */
 function paintGrid(ctx,ox,oy,g,S,P){
   for(let y=0;y<S;y++){for(let x=0;x<S;x++){
     const c=g[y][x];
@@ -357,16 +461,26 @@ function paintGrid(ctx,ox,oy,g,S,P){
     }
   }}
 }
-function buildBigSheet(cfg){
+function drawFrame(ctx,ox,oy,dir,li,P){paintGrid(ctx,ox,oy,frameGrid(dir,li),KIT_S,P);}
+function buildSheet(cfg){
   const P=palette(cfg);
-  const cv=document.createElement('canvas');cv.width=24*9;cv.height=24;
+  const cv=document.createElement('canvas');cv.width=KIT_S*9;cv.height=KIT_S;
   const ctx=cv.getContext('2d');
   ['down','up','side'].forEach(function(d,di){
-    for(let li=0;li<3;li++){paintGrid(ctx,(di*3+li)*24,0,bigGrid(d,li),24,P);}
+    for(let li=0;li<3;li++){drawFrame(ctx,(di*3+li)*KIT_S,0,d,li,P);}
   });
   return cv;
 }
-
+function buildBigSheet(cfg){
+  const P=palette(cfg);
+  const cv=document.createElement('canvas');cv.width=BIG_S*9;cv.height=BIG_S;
+  const ctx=cv.getContext('2d');
+  ['down','up','side'].forEach(function(d,di){
+    for(let li=0;li<3;li++){paintGrid(ctx,(di*3+li)*BIG_S,0,bigGrid(d,li),BIG_S,P);}
+  });
+  return cv;
+}
+/* MODULE src_32_creator.js: the cat maker screen (name, fur, pattern, eyes, clan, preview). */
 /* ---------- creator state ---------- */
 let cfg={name:'Ember',fur:0,pat:1,eye:0,clan:0};
 try{
@@ -383,9 +497,9 @@ const pv=$('#pv'),pctx=pv.getContext('2d');
 let ptick=0;
 function drawPreview(){
   const P=palette(cfg);
-  pctx.clearRect(0,0,48,16);
+  pctx.clearRect(0,0,KIT_S*3,KIT_S);
   const li=[1,0,2,0][ptick%4];
-  ['down','side','up'].forEach(function(d,i){drawFrame(pctx,i*16,0,d,li,P);});
+  ['down','side','up'].forEach(function(d,i){drawFrame(pctx,i*KIT_S,0,d,li,P);});
 }
 setInterval(function(){
   if($('#creator').style.display==='none')return;
@@ -433,6 +547,7 @@ function displayName(){
   return n+(FLAGS.apprentice?'paw':'kit');
 }
 
+/* MODULE src_33_input_audio.js: touch stick and buttons (INPUT), sound (tone and sfx), banner messages. */
 /* ---------- controls (DOM) ---------- */
 const INPUT={x:0,y:0,pounce:false,swipe:false};
 (function(){
@@ -528,6 +643,7 @@ function banner(text,ms){
   if(ms)bannerTimer=setTimeout(function(){b.classList.remove('show');},ms);
 }
 
+/* MODULE src_40_story_data.js: story flags (FLAGS), dialogue state (DLG), every cat (NPCS) and all dialogue (SCRIPTS). Edit story text here. */
 /* ---------- dialogue ---------- */
 const FLAGS={};
 const DLG={open:false,script:null,npc:null,node:null,choices:[],typing:false,timer:null,full:'',i:0,lastClose:0,openedAt:0};
@@ -701,6 +817,7 @@ const NPCS=[
   {id:'sun',name:'Sunfern',role:'Warrior',x:340,y:226,cfg:{fur:0,pat:3,eye:1},script:'sun',pitch:440,big:true}
 ];
 
+/* MODULE src_41_dialogue.js: the dialogue box engine (typing, choices, speakers, scenes). */
 function dlgCtx(){
   const n=cfg.name.charAt(0).toUpperCase()+cfg.name.slice(1).toLowerCase();
   return {name:displayName(),paw:n+'paw',caught:caught,flags:FLAGS};
@@ -710,9 +827,9 @@ function npcView(d){
   return {name:d.name,role:d.role};
 }
 function drawPortrait(sheet){
-  PORT.clearRect(0,0,24,24);
-  if(sheet.width>=216)PORT.drawImage(sheet,0,0,24,24,0,0,24,24);
-  else PORT.drawImage(sheet,0,0,16,16,4,8,16,16);
+  PORT.clearRect(0,0,BIG_S,BIG_S);
+  if(sheet.width>=BIG_S*9)PORT.drawImage(sheet,0,0,BIG_S,BIG_S,0,0,BIG_S,BIG_S);
+  else PORT.drawImage(sheet,0,0,KIT_S,KIT_S,(BIG_S-KIT_S)/2,BIG_S-KIT_S,KIT_S,KIT_S);
 }
 function dlgSpeaker(who){
   const pv=$('#dport');
@@ -823,18 +940,40 @@ document.addEventListener('keydown',function(e){
   }
 });
 
+/* MODULE src_50_scene_setup.js: constants, the loop guard, helpers, and the Play scene class (constructor, create, small object helpers). Other files add the rest of the Play methods. */
 /* ---------- Phaser game ---------- */
+/* Double resolution: every picture is drawn with TS times more pixels than the game's own coordinates.
+   All positions, sizes, speeds and saves still use the original units. The camera zooms by TS, so one
+   game unit is TS screen pixels wide, and pictures are shown at 1/TS of their drawn size. */
+const TS=2;
+const VIEW_W=320,VIEW_H=240;   // how much of the world one screen shows, in game units (a 4:3 view)
 const SPEED=58;
 const FV={down:[0,1],up:[0,-1],left:[-1,0],right:[1,0]};
 const FBASE={down:0,up:3,left:6,right:6};
 let game=null,caught=0;
 
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
-function blob(c,cx,cy,r,col){
+/* Round shapes are filled row by row at full drawn resolution, so their edges are TS times finer than a game unit. */
+function ellHi(c,cx,cy,rx,ry,col){
   c.fillStyle=col;
-  for(let y=-r;y<=r;y++){for(let x=-r;x<=r;x++){if(x*x+y*y<=r*r+r*0.3)c.fillRect(cx+x,cy+y,1,1);}}
+  const Rx=rx+0.35,Ry=ry+0.35,mx=cx+0.5,my=cy+0.5;
+  const p0=Math.floor((my-Ry)*TS),p1=Math.ceil((my+Ry)*TS);
+  for(let py=p0;py<=p1;py++){
+    const dy=(py+0.5)/TS-my,rem=1-(dy*dy)/(Ry*Ry);
+    if(rem<0)continue;
+    const half=Rx*Math.sqrt(rem);
+    const a=Math.ceil((mx-half)*TS-0.5),b=Math.floor((mx+half)*TS-0.5);
+    if(b>=a)c.fillRect(a/TS,py/TS,(b-a+1)/TS,1/TS);
+  }
 }
-function canvasOf(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c;}
+function blob(c,cx,cy,r,col){ellHi(c,cx,cy,r,r,col);}
+/* A canvas TS times bigger than the size asked for. Its drawing context is already scaled, so art code can keep
+   using game units, and fractions of a unit (like 0.5) draw the finer pixels. */
+function canvasOf(w,h){
+  const c=document.createElement('canvas');c.width=w*TS;c.height=h*TS;
+  const x=c.getContext('2d');if(x&&x.scale)x.scale(TS,TS);
+  return c;
+}
 
 /* ---------- keeping the game loop alive ---------- */
 function showStuck(){$('#stuck').classList.add('show');}
@@ -873,14 +1012,10 @@ function pline(c,x0,y0,x1,y1,col){
     if(e2<dx){e+=dx;y0+=sy;}
   }
 }
-function ell(c,cx,cy,rx,ry,col){
-  c.fillStyle=col;
-  for(let y=-ry;y<=ry;y++){for(let x=-rx;x<=rx;x++){
-    if((x*x)/(rx*rx)+(y*y)/(ry*ry)<=1)c.fillRect(cx+x,cy+y,1,1);
-  }}
-}
+function ell(c,cx,cy,rx,ry,col){ellHi(c,cx,cy,rx,ry,col);}
 function outlineCanvas(cv,col){
   const c=cv.getContext('2d'),w=cv.width,h=cv.height;
+  c.setTransform(1,0,0,1,0,0);      // from here on, work in drawn pixels (the outline is one drawn pixel thick)
   const d=c.getImageData(0,0,w,h).data;
   const a=function(x,y){return d[(y*w+x)*4+3]>0;};
   c.fillStyle=col;
@@ -899,18 +1034,35 @@ function updateHud(){
   $('#play').classList.toggle('canswipe',!!FLAGS.swipe);
 }
 function paintGrass(c,w,h,rng,greens,t1,t2,tufts){
-  for(let y=0;y<h;y+=4){for(let x=0;x<w;x+=4){c.fillStyle=greens[(rng()*greens.length)|0];c.fillRect(x,y,4,4);}}
-  for(let i=0;i<tufts;i++){
-    const x=(rng()*w)|0,y=(rng()*h)|0;
-    c.fillStyle=rng()<0.5?t1:t2;c.fillRect(x,y,1,2);
+  /* Base colour blocks are 2 game units wide (4 drawn pixels), then fine grain and thin blades sit on top. */
+  for(let y=0;y<h;y+=2){for(let x=0;x<w;x+=2){c.fillStyle=greens[(rng()*greens.length)|0];c.fillRect(x,y,2,2);}}
+  c.globalAlpha=0.32;
+  for(let i=0;i<w*h*0.3;i++){
+    c.fillStyle=rng()<0.5?t1:t2;
+    c.fillRect(((rng()*w*TS)|0)/TS,((rng()*h*TS)|0)/TS,1/TS,1/TS);
+  }
+  c.globalAlpha=1;
+  for(let i=0;i<tufts*2;i++){
+    const x=((rng()*w*TS)|0)/TS,y=((rng()*h*TS)|0)/TS;
+    c.fillStyle=rng()<0.5?t1:t2;c.fillRect(x,y,1/TS,1.5);
+  }
+}
+/* Small light and dark specks inside a round leafy shape, so foliage has texture. */
+function leafDots(c,rng,cx,cy,r,light,dark,n){
+  for(let i=0;i<n;i++){
+    const a=rng()*6.2832,d=Math.sqrt(rng())*r;
+    c.fillStyle=rng()<0.55?light:dark;
+    c.fillRect(Math.round((cx+Math.cos(a)*d)*TS)/TS,Math.round((cy+Math.sin(a)*d*0.9)*TS)/TS,1/TS,1/TS);
   }
 }
 
 class Play extends Phaser.Scene{
   constructor(){super('play');}
-
   create(){
     sceneRef=this;this.dead=false;
+    /* Pictures are drawn TS times bigger than their game size, so every new image starts at 1/TS scale. */
+    const addImage=this.add.image.bind(this.add);
+    this.add.image=function(x,y,key,frame){return addImage(x,y,key,frame).setScale(1/TS);};
     guardLoop(this.game);
     this.events.once('shutdown',()=>{this.dead=true;});
     this.events.once('destroy',()=>{this.dead=true;});
@@ -939,7 +1091,8 @@ class Play extends Phaser.Scene{
     const cam=this.cameras.main;
     cam.startFollow(this.player,true,0.15,0.15);
     cam.setRoundPixels(true);
-    this.nightRect=this.add.rectangle(0,0,320,180,0x0a1238,0.5).setOrigin(0,0).setScrollFactor(0).setDepth(5000).setVisible(false);
+    cam.setZoom(TS);
+    this.nightRect=this.add.rectangle(-2000,-2000,6000,6000,0x0a1238,0.5).setOrigin(0,0).setScrollFactor(0).setDepth(5000).setVisible(false);
 
     this.cursors=this.input.keyboard.createCursorKeys();
     this.keys=this.input.keyboard.addKeys('W,A,S,D,SPACE,Z,SHIFT,X');
@@ -949,36 +1102,67 @@ class Play extends Phaser.Scene{
     this.saveT=0;
     this.enterRoom(st.room,st.x,st.y);
   }
+  isBig(d){return !!(d.big||(d.id==='wren'&&FLAGS.wrenPaw));}
+  sheetFor(id){
+    const d=NPCS.find(function(n){return n.id===id;});
+    return this.isBig(d)?this.npcSheetsBig[id]:this.npcSheets[id];
+  }
+  /* ---------- object helpers ---------- */
+  t(o){this.roomObjs.push(o);return o;}
+  addSolid(x,y,w,h){
+    const z=this.add.zone(x,y,w,h);
+    this.obstacles.add(z);
+    return z;
+  }
+  treeVis(x,y){this.t(this.add.image(x,y,'tree').setOrigin(0.5,1).setDepth(y));}
+  addTree(x,y){this.treeVis(x,y);this.addSolid(x,y-3,10,6);}
+  addBush(x,y){
+    this.t(this.add.image(x,y,'bush').setOrigin(0.5,1).setDepth(y));
+    this.addSolid(x,y-4,16,8);
+  }
+  addRock(x,y){
+    this.t(this.add.image(x,y,'rock').setOrigin(0.5,1).setDepth(y));
+    this.addSolid(x,y-4,16,8);
+  }
+}
 
+/* MODULE src_51_textures.js: Play methods that draw every sprite and the room grounds. */
+Object.assign(Play.prototype,{
   /* ---------- textures ---------- */
   makeCommonTextures(){
     const T=this.textures;
     const sheet=buildSheet(cfg);
     this.catSheet=sheet;
     const ct=T.addCanvas('cat',sheet);
-    for(let i=0;i<9;i++)ct.add('f'+i,0,i*16,0,16,16);
+    for(let i=0;i<9;i++)ct.add('f'+i,0,i*KIT_S,0,KIT_S,KIT_S);
     this.npcSheets={};this.npcSheetsBig={};
     NPCS.forEach((d)=>{
       const sh=buildSheet(d.cfg);this.npcSheets[d.id]=sh;
       const tx=T.addCanvas('npc_'+d.id,sh);
-      for(let i=0;i<9;i++)tx.add('f'+i,0,i*16,0,16,16);
+      for(let i=0;i<9;i++)tx.add('f'+i,0,i*KIT_S,0,KIT_S,KIT_S);
       const sb=buildBigSheet(d.cfg);this.npcSheetsBig[d.id]=sb;
       const tb=T.addCanvas('npc_'+d.id+'_big',sb);
-      for(let i=0;i<9;i++)tb.add('f'+i,0,i*24,0,24,24);
+      for(let i=0;i<9;i++)tb.add('f'+i,0,i*BIG_S,0,BIG_S,BIG_S);
     });
     this.catBigSheet=buildBigSheet(cfg);
     const cb=T.addCanvas('catbig',this.catBigSheet);
-    for(let i=0;i<9;i++)cb.add('f'+i,0,i*24,0,24,24);
+    for(let i=0;i<9;i++)cb.add('f'+i,0,i*BIG_S,0,BIG_S,BIG_S);
     let cv,tc;
     // tree
     cv=canvasOf(32,40);tc=cv.getContext('2d');
     tc.fillStyle='#5b3d24';tc.fillRect(13,24,7,16);tc.fillStyle='#46301c';tc.fillRect(18,24,2,16);
+    tc.fillStyle='#6d4a2c';tc.fillRect(14,26,0.5,6);tc.fillRect(15.5,31,0.5,7);tc.fillRect(16.5,25,0.5,4);
+    tc.fillStyle='#3a2716';tc.fillRect(13,39,7,1);tc.fillRect(12,38.5,1,1.5);tc.fillRect(20,38.5,1,1.5);
     blob(tc,16,15,13,'#2c5a27');blob(tc,14,13,10,'#3d7833');blob(tc,11,10,6,'#559a3e');blob(tc,20,18,5,'#2f6229');
+    blob(tc,20.5,20,3,'#264d22');
+    leafDots(tc,mulberry32(5),15,14,11.5,'#78c25a','#224a1e',150);
     T.addCanvas('tree',cv);
     // bush
     cv=canvasOf(24,16);tc=cv.getContext('2d');
     blob(tc,12,9,7,'#2f6229');blob(tc,7,9,5,'#3d7833');blob(tc,17,9,5,'#3d7833');blob(tc,11,7,4,'#559a3e');
+    leafDots(tc,mulberry32(6),12,9,7,'#7cc55c','#264d22',60);
     tc.fillStyle='#f2d24a';tc.fillRect(6,8,1,1);tc.fillRect(16,7,1,1);
+    tc.fillStyle='#fff3a0';tc.fillRect(6.5,8,0.5,0.5);tc.fillRect(16.5,7,0.5,0.5);
     T.addCanvas('bush',cv);
     // shadow
     cv=canvasOf(12,4);tc=cv.getContext('2d');tc.fillStyle='rgba(0,0,0,0.3)';
@@ -994,7 +1178,7 @@ class Play extends Phaser.Scene{
         tc.fillStyle=ch==='w'?'#f6ecc6':'#5a4632';tc.fillRect(k*8+x,y,1,1);
       }});
     });
-    const mt=T.addCanvas('moth',cv);mt.add('m0',0,0,0,8,8);mt.add('m1',0,8,0,8,8);
+    const mt=T.addCanvas('moth',cv);mt.add('m0',0,0,0,8*TS,8*TS);mt.add('m1',0,8*TS,0,8*TS,8*TS);
     cv=canvasOf(6,2);tc=cv.getContext('2d');tc.fillStyle='rgba(0,0,0,0.25)';tc.fillRect(0,0,6,2);
     T.addCanvas('mshadow',cv);
     // talk bubble
@@ -1034,6 +1218,8 @@ class Play extends Phaser.Scene{
     // rock
     cv=canvasOf(24,16);tc=cv.getContext('2d');
     ell(tc,12,9,11,7,'#4a4e58');ell(tc,12,8,10,6,'#7b7f8a');ell(tc,9,6,5,3,'#a0a4b0');
+    tc.fillStyle='#5f636e';tc.fillRect(13,9,3,0.5);tc.fillRect(15,9.5,0.5,2);tc.fillRect(7,11,2,0.5);
+    tc.fillStyle='#b8bcc8';tc.fillRect(8,5,2,0.5);tc.fillRect(10,4.5,1,0.5);
     T.addCanvas('rock',cv);
     // moss
     cv=canvasOf(14,10);tc=cv.getContext('2d');
@@ -1111,9 +1297,8 @@ class Play extends Phaser.Scene{
     bd(0,0);bd(32,1);bd(64,2);
     outlineCanvas(cv,'#15121a');
     const bt=T.addCanvas('badger',cv);
-    bt.add('b0',0,0,0,32,20);bt.add('b1',0,32,0,32,20);bt.add('b2',0,64,0,32,20);
-  }
-
+    bt.add('b0',0,0,0,32*TS,20*TS);bt.add('b1',0,32*TS,0,32*TS,20*TS);bt.add('b2',0,64*TS,0,32*TS,20*TS);
+  },
   groundKey(name,painter){
     const key='ground_'+name;
     if(!this.textures.exists(key)){
@@ -1123,31 +1308,10 @@ class Play extends Phaser.Scene{
     }
     return key;
   }
+});
 
-  isBig(d){return !!(d.big||(d.id==='wren'&&FLAGS.wrenPaw));}
-  sheetFor(id){
-    const d=NPCS.find(function(n){return n.id===id;});
-    return this.isBig(d)?this.npcSheetsBig[id]:this.npcSheets[id];
-  }
-
-  /* ---------- object helpers ---------- */
-  t(o){this.roomObjs.push(o);return o;}
-  addSolid(x,y,w,h){
-    const z=this.add.zone(x,y,w,h);
-    this.obstacles.add(z);
-    return z;
-  }
-  treeVis(x,y){this.t(this.add.image(x,y,'tree').setOrigin(0.5,1).setDepth(y));}
-  addTree(x,y){this.treeVis(x,y);this.addSolid(x,y-3,10,6);}
-  addBush(x,y){
-    this.t(this.add.image(x,y,'bush').setOrigin(0.5,1).setDepth(y));
-    this.addSolid(x,y-4,16,8);
-  }
-  addRock(x,y){
-    this.t(this.add.image(x,y,'rock').setOrigin(0.5,1).setDepth(y));
-    this.addSolid(x,y-4,16,8);
-  }
-
+/* MODULE src_52_rooms.js: Play methods that build the rooms (camp, tunnel, glade, hollow), who stands where in camp, and entering or leaving a room. */
+Object.assign(Play.prototype,{
   /* ---------- rooms ---------- */
   clearRoom(){
     this.roomObjs.forEach(function(o){if(o&&o.destroy)o.destroy();});
@@ -1158,15 +1322,16 @@ class Play extends Phaser.Scene{
     this.badger=null;this.gapBlock=null;this.gapMarker=null;this.pile=null;
     if(this.follower){this.follower.img.destroy();this.follower.sh.destroy();this.follower=null;}
     this.trail=[];
-  }
-
+  },
   enterRoom(name,sx,sy){
     this.clearRoom();
     this.room=name;
     const R=ROOMS[name];this.W=R.w;this.H=R.h;
     this.physics.world.setBounds(0,0,R.w,R.h);
     const cam=this.cameras.main;
-    cam.setBounds(0,0,R.w,R.h);
+    /* A room smaller than the screen sits in the middle of it (the extra space shows the dark background). */
+    const padX=Math.max(0,(VIEW_W-R.w)/2),padY=Math.max(0,(VIEW_H-R.h)/2);
+    cam.setBounds(-padX,-padY,R.w+2*padX,R.h+2*padY);
     this.player.body.reset(sx,sy);
     this.player.body.setVelocity(0,0);
     this.pouncing=false;this.walkT=0;this.cool=0;
@@ -1188,8 +1353,7 @@ class Play extends Phaser.Scene{
     this.nearNpc=null;
     updateHud();
     this.roomEntered(name);
-  }
-
+  },
   roomEntered(name){
     const night=!!FLAGS.night;
     const say=function(who,text){banner((who?who+': ':'')+text,6000);};
@@ -1203,8 +1367,7 @@ class Play extends Phaser.Scene{
       FLAGS.seenHollow=1;
       say(night?'Burrkit':'',night?'Wow, we made it! Look for the moss by the old log.':'The moss should be near the old log.');
     }
-  }
-
+  },
   /* ----- camp ----- */
   build_camp(){
     const W=512,H=384;
@@ -1216,23 +1379,24 @@ class Play extends Phaser.Scene{
       paintGrass(c,w,h,rng,['#4f8a3c','#57933f','#4a8038','#528d3d'],'#3c6f2e','#6aa64c',520);
       for(let i=0;i<70;i++){
         const x=(rng()*w)|0,y=(rng()*h)|0,cols=['#f5f0e0','#f2d24a','#e58fb0'];
-        c.fillStyle=cols[(rng()*3)|0];c.fillRect(x,y,2,2);
+        c.fillStyle=cols[(rng()*3)|0];c.fillRect(x,y,1,1);c.fillStyle='#fff3a0';c.fillRect(x+0.25,y+0.25,0.5,0.5);
       }
       const dirt=['#9a7448','#a37c4e','#92693e','#a98255'];
-      for(let y=self.CY-self.RY-6;y<self.CY+self.RY+6;y+=2){
-        for(let x=self.CX-self.RX-6;x<self.CX+self.RX+6;x+=2){
+      for(let y=self.CY-self.RY-6;y<self.CY+self.RY+6;y+=1){
+        for(let x=self.CX-self.RX-6;x<self.CX+self.RX+6;x+=1){
           const dx=(x-self.CX)/self.RX,dy=(y-self.CY)/self.RY,d=dx*dx+dy*dy,n=(rng()-0.5)*0.14;
           if(d<1+n){
-            c.fillStyle=d>0.88?'#82603a':dirt[(rng()*4)|0];c.fillRect(x,y,2,2);
-            if(rng()<0.05){c.fillStyle='#b9945f';c.fillRect(x,y,1,1);}
+            c.fillStyle=d>0.88?'#82603a':dirt[(rng()*4)|0];c.fillRect(x,y,1,1);
+            if(rng()<0.08){c.fillStyle='#b9945f';c.fillRect(x+0.5,y,0.5,0.5);}
+            if(rng()<0.05){c.fillStyle='#7c5a34';c.fillRect(x,y+0.5,0.5,0.5);}
           }
         }
       }
-      for(let y=self.PY-self.PRY-8;y<self.PY+self.PRY+8;y+=2){
-        for(let x=self.PX-self.PRX-8;x<self.PX+self.PRX+8;x+=2){
+      for(let y=self.PY-self.PRY-8;y<self.PY+self.PRY+8;y+=1){
+        for(let x=self.PX-self.PRX-8;x<self.PX+self.PRX+8;x+=1){
           const dx=(x-self.PX)/self.PRX,dy=(y-self.PY)/self.PRY,d=dx*dx+dy*dy;
-          if(d<1){c.fillStyle=rng()<0.5?'#3f7fb5':'#4a8cc2';c.fillRect(x,y,2,2);if(rng()<0.04){c.fillStyle='#8fc4e8';c.fillRect(x,y,3,1);}}
-          else if(d<1.28){c.fillStyle=rng()<0.5?'#c9b98a':'#b8a878';c.fillRect(x,y,2,2);}
+          if(d<1){c.fillStyle=rng()<0.5?'#3f7fb5':'#4a8cc2';c.fillRect(x,y,1,1);if(rng()<0.03){c.fillStyle='#8fc4e8';c.fillRect(x,y,2,0.5);}}
+          else if(d<1.28){c.fillStyle=rng()<0.5?'#c9b98a':'#b8a878';c.fillRect(x,y,1,1);}
         }
       }
     });
@@ -1280,7 +1444,7 @@ class Play extends Phaser.Scene{
     this.campCast().forEach((d)=>{
       const el=d.elev||0,big=this.isBig(d);
       const img=this.t(this.add.image(d.x,d.y-el,'npc_'+d.id+(big?'_big':''),'f0').setOrigin(0.5,big?23/24:14/16).setDepth(d.y+(el?300:0)));
-      this.t(this.add.image(d.x,d.y-el,'shadow').setScale(big?1.3:1,1).setDepth(d.y+(el?300:0)-0.5));
+      this.t(this.add.image(d.x,d.y-el,'shadow').setScale((big?1.3:1)/TS,1/TS).setDepth(d.y+(el?300:0)-0.5));
       this.addSolid(d.x,d.y-1,8,6);
       let bubble=null;
       if(d.talk!==false&&d.script)bubble=this.t(this.add.image(d.x,d.y-(big?34:24),'bubble').setDepth(2000));
@@ -1290,8 +1454,7 @@ class Play extends Phaser.Scene{
     if(FLAGS.stage==='c1'||FLAGS.stage==='c2')this.dir='up';
     else if(FLAGS.stage==='home')this.dir='left';
     if(!FLAGS.night&&!FLAGS.stage){for(let i=0;i<5;i++)this.spawnMoth();}
-  }
-
+  },
   campCast(){
     const P=function(id,x,y,extra){
       const d0=NPCS.find(function(n){return n.id===id;});
@@ -1319,8 +1482,7 @@ class Play extends Phaser.Scene{
     if(FLAGS.ceremony1==='done')list.push(P('wren',172,212));
     if(FLAGS.apprentice)list.push(P(mentor,340,226));
     return list;
-  }
-
+  },
   /* ----- fern tunnel and stream ----- */
   build_tunnel(){
     const W=384,H=224;
@@ -1328,12 +1490,12 @@ class Play extends Phaser.Scene{
       const rng=mulberry32(21);
       paintGrass(c,w,h,rng,['#3f7433','#458038','#3b6c2f','#427a35'],'#2f5a26','#5f9a45',420);
       c.fillStyle='rgba(10,30,14,0.35)';c.fillRect(0,0,w,58);c.fillRect(0,166,w,h-166);
-      for(let y=0;y<h;y+=2){for(let x=128;x<270;x+=2){
+      for(let y=0;y<h;y+=1){for(let x=128;x<270;x+=1){
         const inside=x>=142&&x<254;
         if(!inside&&(x<134||x>=262)&&rng()<0.6)continue;
         c.fillStyle=inside?(rng()<0.5?'#2f6ea6':'#3a7cb5'):(rng()<0.5?'#c9b98a':'#b8a878');
-        c.fillRect(x,y,2,2);
-        if(inside&&rng()<0.03){c.fillStyle='#8fc4e8';c.fillRect(x,y,4,1);}
+        c.fillRect(x,y,1,1);
+        if(inside&&rng()<0.02){c.fillStyle='#8fc4e8';c.fillRect(x,y,2,0.5);}
       }}
     });
     this.t(this.add.image(0,0,key).setOrigin(0,0).setDepth(-10));
@@ -1348,17 +1510,16 @@ class Play extends Phaser.Scene{
     this.water=[144,56,108,112];
     this.exits.push({x:0,y:56,w:8,h:112,to:'camp',sx:456,sy:218});
     this.exits.push({x:376,y:56,w:8,h:112,to:'glade',sx:28,sy:150});
-  }
-
+  },
   /* ----- badger glade ----- */
   build_glade(){
     const W=416,H=256;
     const key=this.groundKey('glade',function(c,w,h){
       const rng=mulberry32(33);
       paintGrass(c,w,h,rng,['#33552a','#385c2d','#305026','#365a2b'],'#274420','#4d7a3a',380);
-      for(let i=0;i<220;i++){c.fillStyle=rng()<0.5?'#5b4630':'#6d5638';c.fillRect((rng()*w)|0,(rng()*h)|0,2,1);}
-      for(let y=126;y<184;y+=2){for(let x=0;x<w;x+=2){
-        if(rng()<0.55){c.fillStyle=rng()<0.5?'#5e4a32':'#6a5539';c.fillRect(x,y,2,2);}
+      for(let i=0;i<220;i++){c.fillStyle=rng()<0.5?'#5b4630':'#6d5638';c.fillRect((rng()*w)|0,(rng()*h)|0,1.5,0.5);}
+      for(let y=126;y<184;y+=1){for(let x=0;x<w;x+=1){
+        if(rng()<0.55){c.fillStyle=rng()<0.5?'#5e4a32':'#6a5539';c.fillRect(x,y,1,1);}
       }}
       c.fillStyle='rgba(4,14,8,0.4)';c.fillRect(0,0,w,100);c.fillRect(0,200,w,h-200);
     });
@@ -1379,24 +1540,23 @@ class Play extends Phaser.Scene{
     // the badger, asleep next to the path
     const bx=208,by=124;
     const img=this.t(this.add.image(bx,by,'badger','b0').setOrigin(0.5,1).setDepth(by));
-    this.t(this.add.image(bx,by,'shadow').setScale(2.6,1.5).setDepth(by-1));
+    this.t(this.add.image(bx,by,'shadow').setScale(2.6/TS,1.5/TS).setDepth(by-1));
     const zz=this.t(this.add.image(bx+14,by-26,'zzz').setDepth(2000));
     this.addSolid(bx,by-5,30,10);
     this.badger={x:bx,y:by-6,state:'sleep',t:0,snore:1,breath:0,f:0,img:img,zz:zz};
     this.exits.push({x:0,y:104,w:8,h:96,to:'tunnel',sx:362,sy:110});
     this.exits.push({x:408,y:104,w:8,h:96,to:'hollow',sx:26,sy:110});
-  }
-
+  },
   /* ----- mossy hollow ----- */
   build_hollow(){
     const W=320,H=208;
     const key=this.groundKey('hollow',function(c,w,h){
       const rng=mulberry32(45);
       paintGrass(c,w,h,rng,['#4c9440','#529d45','#478c3b','#4f9843'],'#37732c','#78be5a',300);
-      for(let i=0;i<90;i++){c.fillStyle='#7bd35a';c.fillRect((rng()*w)|0,(rng()*h)|0,3,2);}
+      for(let i=0;i<90;i++){c.fillStyle='#7bd35a';c.fillRect((rng()*w)|0,(rng()*h)|0,2,1);}
       for(let i=0;i<40;i++){
         const cols=['#f5f0e0','#f2d24a','#e58fb0'];
-        c.fillStyle=cols[(rng()*3)|0];c.fillRect((rng()*w)|0,(rng()*h)|0,2,2);
+        {const fx=(rng()*w)|0,fy=(rng()*h)|0;c.fillStyle=cols[(rng()*3)|0];c.fillRect(fx,fy,1,1);c.fillStyle='#fff3a0';c.fillRect(fx+0.25,fy+0.25,0.5,0.5);}
       }
       c.fillStyle='rgba(10,30,14,0.3)';c.fillRect(0,0,w,46);c.fillRect(0,172,w,h-172);
     });
@@ -1416,15 +1576,18 @@ class Play extends Phaser.Scene{
     this.t(this.add.image(254,40,'pile').setOrigin(0,0).setDepth(80));
     this.addSolid(276,68,40,24);
     this.t2Group.add(this.add.zone(282,63,24,14));   // the top step is solid while you stand on the first step
-    this.t(this.add.image(266,86,'rock').setOrigin(0.5,1).setScale(0.8).setDepth(86));
-    this.t(this.add.image(288,86,'rock').setOrigin(0.5,1).setScale(0.7).setDepth(86));
+    this.t(this.add.image(266,86,'rock').setOrigin(0.5,1).setScale(0.8/TS).setDepth(86));
+    this.t(this.add.image(288,86,'rock').setOrigin(0.5,1).setScale(0.7/TS).setDepth(86));
     for(let i=0;i<10;i++){
       const f=this.t(this.add.image(30+Math.random()*250,60+Math.random()*100,'firefly').setDepth(1500));
       this.fireflies.push({img:f,x:f.x,y:f.y,p:Math.random()*6});
     }
     this.exits.push({x:0,y:44,w:8,h:128,to:'glade',sx:392,sy:150});
   }
+});
 
+/* MODULE src_53_flow.js: Play methods for moving between rooms, cutscene effects, story endings, and the following cat. */
+Object.assign(Play.prototype,{
   /* ---------- follower (Burrkit, on the night path) ---------- */
   setupFollower(){
     if(!FLAGS.night||this.room==='camp')return;
@@ -1434,7 +1597,7 @@ class Play extends Phaser.Scene{
     this.follower={img:img,sh:sh};
     this.fpos={x:px-10,y:py,h:0,dir:'right',li:0};
     for(let i=0;i<18;i++)this.trail.push({x:px,y:py,h:0,dir:this.dir,li:0});
-  }
+  },
   updateFollower(px,py,hop,li){
     this.trail.push({x:px,y:py,h:hop,dir:this.dir,li:li});
     if(this.trail.length>18)this.trail.shift();
@@ -1445,8 +1608,7 @@ class Play extends Phaser.Scene{
     this.follower.img.setFlipX(f.dir==='left');
     this.follower.img.setPosition(Math.round(f.x),Math.round(f.y-f.h)).setDepth(f.y+(f.h>5?300:0));
     this.follower.sh.setPosition(Math.round(f.x),Math.round(f.y)).setDepth(f.y-0.5);
-  }
-
+  },
   /* ---------- moving between rooms ---------- */
   transition(to,sx,sy,card){
     if(this.busy)return;
@@ -1465,11 +1627,11 @@ class Play extends Phaser.Scene{
         setTimeout(()=>{this.busy=false;if(this.pendingScene)this.startScene();},220);
       },card?1300:60);
     },260);
-  }
+  },
   startScene(){
     const s=this.pendingScene;this.pendingScene=null;
     if(s)dlgOpenScene('scene_'+s);
-  }
+  },
   sceneEnd(e){
     if(e==='c1done'){
       FLAGS.ceremony1='done';FLAGS.stage=null;
@@ -1487,7 +1649,7 @@ class Play extends Phaser.Scene{
       this.transition('camp',256,192,displayName()+' is now an apprentice!');
       banner('Story scenes done. Next up: a bigger cat and your first training.',9000);
     }
-  }
+  },
   fx(spec){
     const k=spec.split(':')[0],a=spec.split(':').slice(1).join(':');
     if(k==='gather')sfx('gather');
@@ -1496,7 +1658,7 @@ class Play extends Phaser.Scene{
         FLAGS.apprentice=true;updateHud();
         sfx('levelup');
         this.puff(this.player.x,this.player.y-10,0xfff3a0);
-        this.tweens.add({targets:this.cat,scaleX:{from:0.5,to:1},scaleY:{from:0.5,to:1},duration:380,ease:'Back.easeOut'});
+        this.tweens.add({targets:this.cat,scaleX:{from:0.5/TS,to:1/TS},scaleY:{from:0.5/TS,to:1/TS},duration:380,ease:'Back.easeOut'});
       }else if(a==='wren'){
         FLAGS.wrenPaw=true;
         const n=this.npcs.find(function(x){return x.d.id==='wren';});
@@ -1504,7 +1666,7 @@ class Play extends Phaser.Scene{
           n.big=true;n.sheet=this.npcSheetsBig.wren;
           n.img.setTexture('npc_wren_big','f0');n.img.setOrigin(0.5,23/24);
           this.puff(n.d.x,n.d.y-10,0xfff3a0);
-          this.tweens.add({targets:n.img,scaleX:{from:0.5,to:1},scaleY:{from:0.5,to:1},duration:380,ease:'Back.easeOut'});
+          this.tweens.add({targets:n.img,scaleX:{from:0.5/TS,to:1/TS},scaleY:{from:0.5/TS,to:1/TS},duration:380,ease:'Back.easeOut'});
         }
       }
     }else if(k==='cheer'){
@@ -1521,7 +1683,7 @@ class Play extends Phaser.Scene{
       const x=n?n.d.x:this.player.x,y=n?n.d.y:this.player.y;
       this.puff(x,y-14,0xffc6d6);
     }
-  }
+  },
   onPending(p){
     if(p==='ceremony1'){
       FLAGS.stage='c1';this.pendingScene='c1';
@@ -1533,7 +1695,10 @@ class Play extends Phaser.Scene{
     }else if(p==='night'){FLAGS.night=true;this.transition('camp',this.player.x,this.player.y,'That night...');}
     else if(p==='morning'){FLAGS.morning=true;this.transition('camp',this.player.x,this.player.y,'The next morning...');}
   }
+});
 
+/* MODULE src_54_actions.js: Play methods for Pounce, climbing, Swipe, practice bundles, talking, the main update loop, and cat facing. */
+Object.assign(Play.prototype,{
   /* ---------- actions ---------- */
   tryClimb(){
     if(!this.pile||this.pouncing||this.swiping||this.cool>0)return false;
@@ -1560,7 +1725,7 @@ class Play extends Phaser.Scene{
       }
     }
     return false;
-  }
+  },
   tryPounce(){
     if(this.tryClimb())return;
     if(this.pouncing||this.swiping||this.cool>0)return;
@@ -1569,25 +1734,25 @@ class Play extends Phaser.Scene{
       const b=this.badger;
       if(Math.hypot(this.player.x-b.x,this.player.y-b.y)<70)this.badgerNoise();
     }
-  }
+  },
   action(){
     if(this.pouncing||this.swiping||this.busy)return;
     if(Date.now()-DLG.lastClose<350)return;
     if(this.nearNpc){this.startTalk(this.nearNpc);return;}
     this.tryPounce();
-  }
+  },
   trySwipe(){
     if(!FLAGS.swipe||this.swiping||this.pouncing||this.swipeCool>0||this.busy||DLG.open)return;
     this.swiping=true;this.st=0;this.swipeHit=false;
     sfx('swipe');
     this.slashFx();
-  }
+  },
   slashFx(){
     const f=FV[this.dir];
     const ang={right:0,down:Math.PI/2,left:Math.PI,up:-Math.PI/2}[this.dir];
     const s=this.add.image(this.player.x+f[0]*14,this.player.y-8+f[1]*10,'slash').setRotation(ang).setDepth(2000).setAlpha(0.95);
-    this.tweens.add({targets:s,alpha:0,scale:1.3,duration:190,onComplete:function(){s.destroy();}});
-  }
+    this.tweens.add({targets:s,alpha:0,scale:1.3/TS,duration:190,onComplete:function(){s.destroy();}});
+  },
   swipeStrike(){
     const f=FV[this.dir];
     const cx=this.player.x+f[0]*16,cy=this.player.y+f[1]*12;
@@ -1601,7 +1766,7 @@ class Play extends Phaser.Scene{
         if(Math.hypot(m.gx-cx,m.gy-10-(this.player.y-6))<20){this.catchMoth(i);break;}
       }
     }
-  }
+  },
   spawnDummies(){
     FLAGS.bundles=0;
     [[200,214],[256,246],[312,214]].forEach((p)=>{
@@ -1611,7 +1776,7 @@ class Play extends Phaser.Scene{
       this.dummies.push({x:p[0],y:p[1],hp:3,img:img,sh:sh,zone:zone});
     });
     updateHud();
-  }
+  },
   hitDummy(i){
     const d=this.dummies[i];
     d.hp--;
@@ -1627,14 +1792,13 @@ class Play extends Phaser.Scene{
       FLAGS.bundles=(FLAGS.bundles||0)+1;
       updateHud();
     }
-  }
+  },
   startTalk(n){
     const dx=n.d.x-this.player.x,dy=n.d.y-this.player.y;
     this.dir=Math.abs(dx)>Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up');
     this.player.body.setVelocity(0,0);
     dlgOpen(n);
-  }
-
+  },
   /* ---------- main loop ---------- */
   update(time,delta){
     const dt=Math.min(delta,50)/1000;
@@ -1729,7 +1893,7 @@ class Play extends Phaser.Scene{
     this.cat.setPosition(Math.round(px),Math.round(py-hop-this.elevVis));
     this.cat.setDepth(py+(raised?300:0));
     this.shadow.setPosition(Math.round(px),Math.round(py-this.elevVis));
-    this.shadow.setScale((1-hop*0.04)*(this.catBigOn?1.3:1),1-hop*0.04);
+    this.shadow.setScale((1-hop*0.04)*(this.catBigOn?1.3:1)/TS,(1-hop*0.04)/TS);
     this.shadow.setDepth(py+(raised?300:0)-0.5);
 
     if(this.follower)this.updateFollower(px,py,hop+this.elevVis,li);
@@ -1746,8 +1910,7 @@ class Play extends Phaser.Scene{
         if(px>=e.x&&px<=e.x+e.w&&py>=e.y&&py<=e.y+e.h){this.transition(e.to,e.sx,e.sy);break;}
       }
     }
-  }
-
+  },
   updateNpcs(time,px,py){
     let best=null,bd=26;
     this.npcs.forEach((n)=>{
@@ -1769,7 +1932,10 @@ class Play extends Phaser.Scene{
     const label=this.nearNpc?'Talk':'Pounce';
     if(label!==this.lastLabel){this.lastLabel=label;$('#pounce').textContent=label;}
   }
+});
 
+/* MODULE src_55_room_logic.js: Play methods that run each room while you are in it (moths, stream, badger, hollow). */
+Object.assign(Play.prototype,{
   /* ---------- camp ---------- */
   upd_camp(time){
     const open=!!(FLAGS.night||FLAGS.errand)&&!FLAGS.stage;
@@ -1786,8 +1952,7 @@ class Play extends Phaser.Scene{
       FLAGS.gapHint=1;
       banner('The ferns on the east side of camp are open. Head that way.',6000);
     }
-  }
-
+  },
   spawnMoth(){
     let x,y,n=0;
     do{
@@ -1797,8 +1962,7 @@ class Play extends Phaser.Scene{
     const img=this.t(this.add.image(x,y-10,'moth','m0').setDepth(900));
     const sh=this.t(this.add.image(x,y,'mshadow').setDepth(1));
     this.moths.push({gx:x,gy:y,tx:x,ty:y,timer:0,t:Math.random()*6,wing:0,f:0,img:img,sh:sh,speed:14+Math.random()*10});
-  }
-
+  },
   updateMoths(dt){
     const self=this;
     this.moths.forEach(function(m){
@@ -1820,16 +1984,14 @@ class Play extends Phaser.Scene{
       m.img.setPosition(Math.round(m.gx),Math.round(m.gy-10+Math.sin(m.t*6)*2));
       m.sh.setPosition(Math.round(m.gx),Math.round(m.gy));
     });
-  }
-
+  },
   checkCatch(f,hop){
     const px=this.player.x+f[0]*8,py=this.player.y-4-hop*0.8+f[1]*4;
     for(let i=0;i<this.moths.length;i++){
       const m=this.moths[i];
       if(Math.hypot(m.gx-px,m.gy-10-py)<15){this.catchMoth(i);break;}
     }
-  }
-
+  },
   catchMoth(i){
     const m=this.moths.splice(i,1)[0];
     const x=m.img.x,y=m.img.y;
@@ -1840,18 +2002,16 @@ class Play extends Phaser.Scene{
     updateHud();
     if(caught===5)banner('Five moths! Nice pouncing, '+displayName()+'.',4500);
     this.time.delayedCall(1800,()=>{if(!this.dead&&this.room==='camp'&&!FLAGS.night)this.spawnMoth();});
-  }
-
+  },
   puff(x,y,col){
     for(let i=0;i<6;i++){
       const a=i/6*Math.PI*2;
       const r=this.add.rectangle(x,y,2,2,col).setDepth(2000);
       this.tweens.add({targets:r,x:x+Math.cos(a)*11,y:y+Math.sin(a)*11,alpha:0,duration:320,onComplete:function(){r.destroy();}});
     }
-  }
-
+  },
   /* ---------- tunnel: the stream ---------- */
-  onPad(p,x,y,k){const a=(x-p.x)/(12*k),b=(y-p.y)/(8*k);return a*a+b*b<=1;}
+  onPad(p,x,y,k){const a=(x-p.x)/(12*k),b=(y-p.y)/(8*k);return a*a+b*b<=1;},
   upd_tunnel(px,py){
     if(this.pouncing)return;
     if(!inR(this.water,px,py,0)){this.lastSafe={x:px,y:py};return;}
@@ -1872,7 +2032,7 @@ class Play extends Phaser.Scene{
       }
     }
     this.splash(px,py);
-  }
+  },
   splash(px,py){
     this.puff(px,py-2,0x8fc4e8);
     sfx('splash');
@@ -1886,8 +2046,7 @@ class Play extends Phaser.Scene{
       this.fpos={x:ls.x-10,y:ls.y,h:0,dir:this.dir,li:0};
     }
     setTimeout(()=>{if(!this.dead)this.busy=false;},450);
-  }
-
+  },
   /* ---------- glade: the sleeping badger ---------- */
   upd_glade(dt,px,py){
     const b=this.badger;
@@ -1928,7 +2087,7 @@ class Play extends Phaser.Scene{
         if(b.t>2.6){b.state='sleep';b.t=0;b.snore=1;}
       }
     }
-  }
+  },
   badgerNoise(){
     const b=this.badger;
     if(!b)return;
@@ -1939,7 +2098,7 @@ class Play extends Phaser.Scene{
     }else if(b.state==='stir'){
       this.badgerWake();
     }
-  }
+  },
   badgerWake(){
     const b=this.badger;
     if(!b||b.state==='wake')return;
@@ -1961,8 +2120,7 @@ class Play extends Phaser.Scene{
       }
       this.busy=false;b.state='cool';b.t=0;
     });
-  }
-
+  },
   /* ---------- hollow: moss and the view ---------- */
   upd_hollow(time,px,py){
     // on the rock pile: the top step is solid from the first step, and the top and right edges are walls
@@ -2005,10 +2163,11 @@ class Play extends Phaser.Scene{
       banner(FLAGS.night?'The whole forest lies silver under the moon. It is wider than you ever imagined.':'The whole forest rolls out below, green and gold in the sun. It is wider than you ever imagined.',7500);
     }
   }
-}
+});
 
+/* MODULE src_60_saves_screens.js: saved games, the slot screen, starting and leaving a game, and the final button wiring. */
 /* ---------- saved games ---------- */
-const GAME_VERSION='0.6.1';
+const GAME_VERSION='0.7.0';
 const SLOTN=5;
 let slot=0,LOADED=null;
 function readSlot(i){try{const s=localStorage.getItem('forestkit.slot.'+i);return s?JSON.parse(s):null;}catch(e){return null;}}
@@ -2027,10 +2186,10 @@ function slotName(s){
 }
 function slotLevel(s){const f=s.flags||{};return f.trainingDone?3:(f.apprentice?2:1);}
 function drawCatPreview(cv,c,big){
-  const S=big?24:16;
+  const S=big?BIG_S:KIT_S;
   cv.width=S;cv.height=S;
   const ctx=cv.getContext('2d'),P=palette(c);
-  if(big)paintGrid(ctx,0,0,bigGrid('down',0),24,P);
+  if(big)paintGrid(ctx,0,0,bigGrid('down',0),BIG_S,P);
   else drawFrame(ctx,0,0,'down',0,P);
 }
 function showScreen(which){
@@ -2113,7 +2272,7 @@ function startGame(fromSave){
   $('#fade').style.opacity=0;$('#card').style.opacity=0;
   banner(snap?'Welcome back, '+displayName()+'!':'Pounce on the moths. Walk up to a cat and tap Talk to chat.',5500);
   game=new Phaser.Game({
-    type:Phaser.AUTO,parent:'game',width:320,height:180,
+    type:Phaser.AUTO,parent:'game',width:VIEW_W*TS,height:VIEW_H*TS,
     pixelArt:true,roundPixels:true,backgroundColor:'#1f3a2a',
     scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},
     physics:{default:'arcade',arcade:{debug:false}},

@@ -670,6 +670,7 @@ function sfx(k,p){
   if(k==='levelup'){[523,659,784,1047].forEach(function(f,i){tone(f,i===3?0.24:0.1,0.08,i*0.1);});}
   if(k==='gather'){tone(196,0.28,0.07,0,'triangle');tone(262,0.34,0.07,0.28,'triangle');}
   if(k==='splash'){tone(420,0.05,0.07,0);tone(260,0.09,0.07,0.05);tone(180,0.1,0.05,0.12);}
+  if(k==='rumble'){const v=p||0.05;tone(48,1.1,v,0,'sawtooth');tone(42,0.9,v*0.8,0.3,'sawtooth');}
 }
 
 /* ---------- HUD helpers ---------- */
@@ -810,6 +811,54 @@ const SCRIPTS={
     f:{who:null,fx:'nose:me',text:"You touch noses with your mentor. It is done.",next:'g'},
     g:{who:function(c){return c.flags.mentor;},text:function(c){return c.flags.mentor==='flint'?"Get some rest. Training starts tomorrow, and I expect you sharp.":"Well done, "+c.paw+". Rest well. We start tomorrow, and I think it will be fun.";}}
   }},
+  scene_c2start:{nodes:{
+    a:{who:function(c){return c.flags.mentor;},text:"This is the hunting field. Prey hears fast footsteps, so keep low and slow.",next:'b'},
+    b:{who:function(c){return c.flags.mentor;},text:"Push the stick gently, or hold Shift, to creep. Get close, then Pounce.",next:'c'},
+    c:{who:function(c){return c.flags.mentor;},text:"Go on. Catch your first mouse."}
+  }},
+  scene_c2catch:{onEnd:'c2catchDone',nodes:{
+    a:{who:function(c){return c.flags.mentor;},text:"Nicely caught! That is real prey for the Clan.",next:'b'},
+    b:{who:function(c){return c.flags.mentor;},text:function(c){return "That is your first catch, "+c.paw+". A hunting patrol comes next, once it is built.";}}
+  }},
+  scene_c2patrol:{onEnd:'c2patrolDone',nodes:{
+    a:{who:function(c){return c.flags.mentor;},text:"Four catches! The fresh-kill pile looks much better tonight.",next:'b'},
+    b:{who:function(c){return c.flags.mentor;},text:"Come on. It is time you learned the border."}
+  }},
+  scene_c2borderstart:{nodes:{
+    a:{who:function(c){return c.flags.mentor;},text:"This is the border. ShadowClan's pines start on the far side.",next:'b'},
+    b:{who:function(c){return c.flags.mentor;},text:"Keep your ears open, and mark anything that smells wrong.",next:'c'},
+    c:{who:null,text:"Far off, something low and rumbling groans through the trees. You are not sure what it is.",next:'d'},
+    d:{who:null,text:"A ShadowClan apprentice is watching you from across the border."}
+  }},
+  scene_c2border:{onEnd:'c2borderDone',nodes:{
+    a:{who:function(c){return c.flags.mentor;},text:"A ShadowClan apprentice, sharing one mouse three ways. That is worth remembering.",next:'b'},
+    b:{who:function(c){return c.flags.mentor;},text:"Whatever that rumbling was, it is not ours to worry about tonight. Let's head back."}
+  }},
+  scene_c2swipe:{nodes:{
+    a:{who:function(c){return c.flags.mentor;},text:"Ready to make Swipe useful? Those leaf piles need clearing before leafbare comes.",next:'b'},
+    b:{who:function(c){return c.flags.mentor;},set:{pending:'leafpractice'},text:"Face a pile and tap Swipe."}
+  }},
+  scene_c2leafdone:{nodes:{
+    a:{who:function(c){return c.flags.mentor;},text:"All three cleared! Nice control.",next:'b'},
+    b:{who:function(c){return c.flags.mentor;},fx:'sparstart',text:"Now spar with me. Watch for an opening, then Swipe."}
+  }},
+  scene_c2spardone:{onEnd:'c2spardoneEnd',nodes:{
+    a:{who:function(c){return c.flags.mentor;},text:"Sharp and steady. You are ready for real Clan work.",next:'b'},
+    b:{who:function(c){return c.flags.mentor;},text:"There is one more thing I should ask you."}
+  }},
+  scene_c2medoffer:{onEnd:'c2medofferEnd',nodes:{
+    a:{who:function(c){return c.flags.mentor;},text:"I have noticed how careful you are with hurt creatures. Some cats become medicine cats instead of warriors. Would that ever interest you?",choices:[
+      {t:"Maybe, tell me more.",go:'soon'},
+      {t:"I want to be a warrior.",go:'warrior'}
+    ]},
+    soon:{who:function(c){return c.flags.mentor;},text:"Soon. That path is not ready to teach yet, but I will remember you asked."},
+    warrior:{who:function(c){return c.flags.mentor;},text:"Good. Then let's keep sharpening those claws."}
+  }},
+  finch:{start:'hi',nodes:{
+    hi:{text:"Oh! I did not see you there. I am Finchpaw, from ShadowClan.",next:'a'},
+    a:{text:"We are sharing one mouse between three of us today. Prey is thin on our side of the pines.",next:'b'},
+    b:{text:"Do not tell your Clan I said that. I should not have.",set:{metFinch:true}}
+  }},
   elder:{start:function(c){return c.flags.apprentice?'proud':'hi';},nodes:{
     proud:{text:"An apprentice already? Hmph. In my day we waited for leaf-fall. ...Well done, youngster."},
     hi:{text:"Hmph. A kit, up and about before my nap is done. What do you want, little one?",choices:ELDER_MENU},
@@ -851,7 +900,8 @@ const NPCS=[
   {id:'wren',name:'Wrenkit',role:'Kit',x:172,y:212,cfg:{fur:4,pat:2,eye:0},script:'wren',pitch:660,young:true},
   {id:'ripple',name:'Ripplefoot',role:'Warrior',x:288,y:150,cfg:{fur:6,pat:1,eye:2},pitch:349,big:true},
   {id:'flint',name:'Flintwhisker',role:'Warrior',x:340,y:226,cfg:{fur:5,pat:0,eye:3},script:'flint',pitch:294,big:true},
-  {id:'sun',name:'Sunfern',role:'Warrior',x:340,y:226,cfg:{fur:0,pat:3,eye:1},script:'sun',pitch:440,big:true}
+  {id:'sun',name:'Sunfern',role:'Warrior',x:340,y:226,cfg:{fur:0,pat:3,eye:1},script:'sun',pitch:440,big:true},
+  {id:'finch',name:'Finchpaw',role:'Apprentice',x:300,y:100,cfg:{fur:5,pat:1,eye:2},script:'finch',pitch:500}
 ];
 
 /* MODULE src_41_dialogue.js: the dialogue box engine (typing, choices, speakers, scenes). */
@@ -1081,7 +1131,7 @@ function guardLoop(game){
 }
 
 /* ---------- rooms and helpers ---------- */
-const ROOMS={camp:{w:512,h:384},tunnel:{w:384,h:224},glade:{w:416,h:256},hollow:{w:320,h:208}};
+const ROOMS={camp:{w:512,h:384},tunnel:{w:384,h:224},glade:{w:416,h:256},hollow:{w:320,h:208},field:{w:384,h:240},border:{w:384,h:200}};
 const LUNGE=108;
 let sceneRef=null;
 
@@ -1115,7 +1165,7 @@ function inR(r,x,y,pad){
 }
 function updateHud(){
   $('#hudname').textContent=displayName()+'  Lv '+(FLAGS.trainingDone?3:(FLAGS.apprentice?2:1));
-  $('#count').textContent='Moths '+caught+(FLAGS.moss?'   Moss 1':'')+(FLAGS.training==='active'?'   Bundles '+(FLAGS.bundles||0)+'/3':'');
+  $('#count').textContent='Moths '+caught+(FLAGS.moss?'   Moss 1':'')+(FLAGS.training==='active'?'   Bundles '+(FLAGS.bundles||0)+'/3':'')+(FLAGS.preyCount?'   Prey '+FLAGS.preyCount:'');
   $('#play').classList.toggle('canswipe',!!FLAGS.swipe);
 }
 function paintGrass(c,w,h,rng,greens,t1,t2,tufts){
@@ -1153,7 +1203,7 @@ class Play extends Phaser.Scene{
     this.events.once('destroy',()=>{this.dead=true;});
     this.makeCommonTextures();
     this.obstacles=this.physics.add.staticGroup();
-    this.roomObjs=[];this.moths=[];this.npcs=[];this.twigs=[];this.exits=[];this.fireflies=[];this.mossObjs=[];
+    this.roomObjs=[];this.moths=[];this.npcs=[];this.twigs=[];this.exits=[];this.fireflies=[];this.mossObjs=[];this.mice=[];
     this.follower=null;this.trail=[];this.fpos=null;this.badger=null;this.gapBlock=null;this.gapMarker=null;
     this.busy=false;this.room='';this.mag=0;this.splashCool=0;
     this.level=0;this.elevVis=0;this.climb=null;this.pile=null;this.landGrace=0;this.gladeFrom='left';this.pendingScene=null;
@@ -1280,6 +1330,33 @@ Object.assign(Play.prototype,{
     // firefly
     cv=canvasOf(3,3);tc=cv.getContext('2d');tc.fillStyle='#f6f0a0';tc.fillRect(1,0,1,3);tc.fillRect(0,1,3,1);
     T.addCanvas('firefly',cv);
+    // mouse: two frames (still, alert), 8 x 6 game units each, stacked in one canvas
+    cv=canvasOf(8,12);tc=cv.getContext('2d');
+    ellF(tc,4,4,3,2,'#8a6b45');
+    tc.fillStyle='#d9c19a';tc.fillRect(1.5,4.5,2,1);
+    tc.fillStyle='#3a2c1c';tc.fillRect(1.5,2.5,0.5,0.5);
+    dline(tc,6.5,4,7.8,3,'#c99a6a');
+    ellF(tc,4,10,3,2,'#8a6b45');
+    tc.fillStyle='#d9c19a';tc.fillRect(1.5,10.5,2,1);
+    tc.fillStyle='#3a2c1c';tc.fillRect(1.5,8.5,0.5,0.5);
+    tc.fillStyle='#8a6b45';tc.fillRect(1.5,7,0.6,1.2);tc.fillRect(2.4,7,0.6,1.2);
+    dline(tc,6.5,9,8,7,'#c99a6a');
+    const mo=T.addCanvas('mouse',cv);mo.add('n0',0,0,0,8*TS,6*TS);mo.add('n1',0,6*TS,0,8*TS,6*TS);
+    // fresh-kill pile: two frames (a small catch, a fuller one), 20 x 10 game units each
+    cv=canvasOf(20,20);tc=cv.getContext('2d');
+    ellF(tc,10,7,7,3,'#6b4a2c');
+    ellF(tc,7,5.5,3,1.6,'#8a6b45');ellF(tc,13,5.5,2.6,1.4,'#7a5a38');
+    tc.fillStyle='#c99a6a';tc.fillRect(5,6.5,1.5,0.5);tc.fillRect(15,6,1.5,0.5);
+    ellF(tc,10,17,8,3.4,'#6b4a2c');
+    ellF(tc,6,15,3,1.6,'#8a6b45');ellF(tc,10,14.5,3,1.8,'#7a5a38');ellF(tc,14.5,15.5,2.6,1.5,'#8a6b45');
+    tc.fillStyle='#c99a6a';tc.fillRect(3,16,1.5,0.5);tc.fillRect(12,15.5,1.5,0.5);tc.fillRect(17,16.5,1.5,0.5);
+    const fk=T.addCanvas('freshkill',cv);fk.add('k0',0,0,0,20*TS,10*TS);fk.add('k1',0,10*TS,0,20*TS,10*TS);
+    // leaf pile: a Swipe practice target for Chapter 2
+    cv=canvasOf(14,10);tc=cv.getContext('2d');
+    ellF(tc,7,7,6,3,'#6b4a2c');
+    leafDots(tc,mulberry32(9),7,5,6,'#e8b64a','#c98a2e',80);
+    ellF(tc,4,4,2.4,1.6,'#e8b64a');ellF(tc,9,3.6,2.2,1.5,'#d99a3a');ellF(tc,7,6,2.6,1.6,'#c98a2e');
+    T.addCanvas('leafpile',cv);
   },
   groundKey(name,painter){
     const key='ground_'+name;
@@ -1522,12 +1599,22 @@ Object.assign(Play.prototype,{
 /* MODULE src_52_rooms.js: Play methods that build the rooms (camp, tunnel, glade, hollow), who stands where in camp, and entering or leaving a room. */
 Object.assign(Play.prototype,{
   /* ---------- rooms ---------- */
+  /* ---------- a single talkable cat, placed outside the camp cast ---------- */
+  spawnTalker(id,x,y){
+    const d=Object.assign({},NPCS.find(function(n){return n.id===id;}),{x:x,y:y});
+    const big=this.isBig(d);
+    const img=this.t(this.add.image(x,y,'npc_'+id+(big?'_big':''),'f0').setOrigin(0.5,big?23/24:14/16).setDepth(y));
+    this.t(this.add.image(x,y,'shadow').setScale((big?1.3:1)/TS,1/TS).setDepth(y-0.5));
+    this.addSolid(x,y-1,8,6);
+    const bubble=this.t(this.add.image(x,y-(big?34:24),'bubble').setDepth(2000));
+    this.npcs.push({d:d,img:img,bubble:bubble,big:big,sheet:big?this.npcSheetsBig[id]:this.npcSheets[id]});
+  },
   clearRoom(){
     this.roomObjs.forEach(function(o){if(o&&o.destroy)o.destroy();});
     this.roomObjs=[];
     this.obstacles.clear(true,true);
     this.t2Group.clear(true,true);this.t2Collider.active=false;
-    this.moths=[];this.npcs=[];this.twigs=[];this.exits=[];this.fireflies=[];this.mossObjs=[];this.dummies=[];
+    this.moths=[];this.npcs=[];this.twigs=[];this.exits=[];this.fireflies=[];this.mossObjs=[];this.dummies=[];this.mice=[];
     this.badger=null;this.gapBlock=null;this.gapMarker=null;this.pile=null;
     if(this.follower){this.follower.img.destroy();this.follower.sh.destroy();this.follower=null;}
     this.trail=[];
@@ -1575,6 +1662,16 @@ Object.assign(Play.prototype,{
     }else if(name==='hollow'&&!FLAGS.seenHollow){
       FLAGS.seenHollow=1;
       say(night?'Burrkit':'',night?'Wow, we made it! Look for the moss by the old log.':'The moss should be near the old log.');
+    }else if(name==='field'&&!FLAGS.seenField){
+      FLAGS.seenField=1;
+      this.pendingScene='c2start';
+    }else if(name==='field'&&FLAGS.borderDone&&!FLAGS.seenSwipe){
+      FLAGS.seenSwipe=1;
+      this.pendingScene='c2swipe';
+    }else if(name==='border'&&!FLAGS.seenBorder){
+      FLAGS.seenBorder=1;
+      this.pendingScene='c2borderstart';
+      this.time.delayedCall(1400,()=>{if(!this.dead&&this.room==='border')sfx('rumble',0.06);});
     }
   },
   /* ----- camp ----- */
@@ -1612,7 +1709,7 @@ Object.assign(Play.prototype,{
     this.t(this.add.image(0,0,key).setOrigin(0,0).setDepth(-10));
 
     const rng=mulberry32(8);
-    const open=!!(FLAGS.night||FLAGS.errand)&&!FLAGS.stage;
+    const open=!!(FLAGS.night||FLAGS.errand||FLAGS.trainingDone)&&!FLAGS.stage;
     for(let x=8;x<W;x+=26){
       this.addTree(x+((rng()*8)|0),26+((rng()*6)|0));
       this.addTree(x+13+((rng()*8)|0),54+((rng()*6)|0));
@@ -1648,6 +1745,12 @@ Object.assign(Play.prototype,{
     if(!open)this.gapBlock=this.addSolid(480,218,8,30);
     this.gapMarker=this.t(this.add.image(466,190,'bubble').setDepth(2000).setVisible(open));
     this.exits.push({x:474,y:204,w:16,h:28,to:'tunnel',sx:24,sy:112,when:function(){return !!(FLAGS.night||FLAGS.errand)&&!FLAGS.stage;}});
+    this.exits.push({x:474,y:204,w:16,h:28,to:'field',sx:24,sy:120,when:function(){return !!FLAGS.trainingDone&&!FLAGS.stage;}});
+    // fresh-kill pile: shows what hunting has brought in so far (Chapter 2)
+    this.freshKill=this.t(this.add.image(300,205,'freshkill','k0').setOrigin(0.5,1).setDepth(205));
+    this.addSolid(300,201,16,8);
+    this.freshKill.setVisible(!!FLAGS.preyCount);
+    this.freshKill.setFrame(FLAGS.preyCount>=4?'k1':'k0');
 
     // cats
     this.campCast().forEach((d)=>{
@@ -1792,6 +1895,51 @@ Object.assign(Play.prototype,{
       this.fireflies.push({img:f,x:f.x,y:f.y,p:Math.random()*6});
     }
     this.exits.push({x:0,y:44,w:8,h:128,to:'glade',sx:392,sy:150});
+  },
+  /* ----- hunting field (Chapter 2) ----- */
+  build_field(){
+    const W=384,H=240;
+    const key=this.groundKey('field',function(c,w,h){
+      const rng=mulberry32(61);
+      paintGrass(c,w,h,rng,['#6a9c3f','#729f46','#638c3a','#6b9640'],'#557f33','#8ec25e',480);
+    });
+    this.t(this.add.image(0,0,key).setOrigin(0,0).setDepth(-10));
+    this.addSolid(W/2,10,W,20);this.addSolid(W/2,H-10,W,20);
+    this.addSolid(10,H/2,20,H);this.addSolid(W-10,H/2,20,H);
+    for(let x=16;x<W;x+=40){this.treeVis(x+((x*5)%9),24);this.treeVis(x+18,H-18);}
+    [[60,120],[150,90],[240,140],[320,100]].forEach((p)=>{this.t(this.add.image(p[0],p[1],'fern').setOrigin(0.5,1).setDepth(p[1]));});
+    this.mice=[];
+    this.spawnMouse(90,130);
+    this.spawnMouse(260,150);
+    this.exits.push({x:0,y:70,w:8,h:100,to:'camp',sx:456,sy:218});
+    this.exits.push({x:376,y:70,w:8,h:100,to:'border',sx:24,sy:100,when:function(){return !!FLAGS.patrolDone;}});
+  },
+  /* ----- the border with ShadowClan ----- */
+  build_border(){
+    const W=384,H=200;
+    const key=this.groundKey('border',function(c,w,h){
+      const rng=mulberry32(77);
+      for(let y=0;y<h;y+=2){for(let x=0;x<w;x+=2){
+        const shade=x/w;
+        const greens=shade<0.55?['#6a9c3f','#729f46','#638c3a']:['#2f5233','#345a37','#2a4b2e'];
+        c.fillStyle=greens[(rng()*greens.length)|0];c.fillRect(x,y,2,2);
+      }}
+      c.globalAlpha=0.3;
+      for(let i=0;i<w*h*0.25;i++){
+        c.fillStyle=rng()<0.5?'#4a7a34':'#274420';
+        c.fillRect(((rng()*w*TS)|0)/TS,((rng()*h*TS)|0)/TS,1/TS,1/TS);
+      }
+      c.globalAlpha=1;
+    });
+    this.t(this.add.image(0,0,key).setOrigin(0,0).setDepth(-10));
+    this.addSolid(W/2,20,W,40);this.addSolid(W/2,H-20,W,40);
+    this.addSolid(W-8,H/2,16,H);
+    for(let x=14;x<200;x+=48)this.treeVis(x,40+((x*3)%14));
+    for(let x=200;x<W;x+=26){this.treeVis(x+((x*5)%9),36);this.treeVis(x+13,H-30);}
+    // a marker post far off, near the top: a hint of Twolegs beyond the trees
+    [[70,26],[86,26],[102,26]].forEach((p)=>{this.t(this.add.rectangle(p[0],p[1],3,10,0x8a8a86,0.55).setDepth(-6));});
+    this.spawnTalker('finch',300,100);
+    this.exits.push({x:0,y:60,w:8,h:80,to:'field',sx:360,sy:150});
   }
 });
 
@@ -1857,6 +2005,18 @@ Object.assign(Play.prototype,{
       FLAGS.stage=null;
       this.transition('camp',256,192,displayName()+' is now an apprentice!');
       banner('Story scenes done. Next up: a bigger cat and your first training.',9000);
+    }else if(e==='c2catchDone'){
+      FLAGS.patrolActive=true;
+      banner('Hunting patrol: catch 3 more mice for the fresh-kill pile.',7000);
+    }else if(e==='c2patrolDone'){
+      this.transition('border',24,100,'The mentor leads you toward the border...');
+    }else if(e==='c2borderDone'){
+      banner('Border patrol done. Head back to the field for Swipe practice.',7000);
+    }else if(e==='c2spardoneEnd'){
+      this.time.delayedCall(500,()=>{if(!this.dead)dlgOpenScene('scene_c2medoffer');});
+    }else if(e==='c2medofferEnd'){
+      FLAGS.chapter2Done=true;
+      banner('Chapter 2 built so far is complete! Next up: Chapter 3, the raid (not built yet).',9000);
     }
   },
   fx(spec){
@@ -1891,6 +2051,8 @@ Object.assign(Play.prototype,{
       const n=a==='me'?null:this.npcs.find(function(x){return x.d.id===a;});
       const x=n?n.d.x:this.player.x,y=n?n.d.y:this.player.y;
       this.puff(x,y-14,0xffc6d6);
+    }else if(k==='sparstart'){
+      this.spawnSparDummy();
     }
   },
   onPending(p){
@@ -1903,6 +2065,7 @@ Object.assign(Play.prototype,{
       banner('Swipe all 3 practice bundles. Face one and tap Swipe.',7000);
     }else if(p==='night'){FLAGS.night=true;this.transition('camp',this.player.x,this.player.y,'That night...');}
     else if(p==='morning'){FLAGS.morning=true;this.transition('camp',this.player.x,this.player.y,'The next morning...');}
+    else if(p==='leafpractice'){this.spawnLeafPiles();banner('Swipe all 3 leaf piles. Face one and tap Swipe.',7000);}
   }
 });
 
@@ -1982,9 +2145,27 @@ Object.assign(Play.prototype,{
       const img=this.t(this.add.image(p[0],p[1],'bundle').setOrigin(0.5,1).setDepth(p[1]));
       const sh=this.t(this.add.image(p[0],p[1],'shadow').setDepth(p[1]-0.5));
       const zone=this.addSolid(p[0],p[1]-1,10,6);
-      this.dummies.push({x:p[0],y:p[1],hp:3,img:img,sh:sh,zone:zone});
+      this.dummies.push({x:p[0],y:p[1],hp:3,img:img,sh:sh,zone:zone,kind:'bundle'});
     });
     updateHud();
+  },
+  spawnLeafPiles(){
+    FLAGS.leaves=0;FLAGS.leafActive=true;
+    [[120,190],[192,205],[264,190]].forEach((p)=>{
+      const img=this.t(this.add.image(p[0],p[1],'leafpile').setOrigin(0.5,1).setDepth(p[1]));
+      const sh=this.t(this.add.image(p[0],p[1],'shadow').setDepth(p[1]-0.5));
+      const zone=this.addSolid(p[0],p[1]-1,10,6);
+      this.dummies.push({x:p[0],y:p[1],hp:2,img:img,sh:sh,zone:zone,kind:'leaf'});
+    });
+    updateHud();
+  },
+  spawnSparDummy(){
+    FLAGS.sparActive=true;
+    const p=[192,150];
+    const img=this.t(this.add.image(p[0],p[1],'bundle').setOrigin(0.5,1).setDepth(p[1]));
+    const sh=this.t(this.add.image(p[0],p[1],'shadow').setDepth(p[1]-0.5));
+    const zone=this.addSolid(p[0],p[1]-1,10,6);
+    this.dummies.push({x:p[0],y:p[1],hp:5,img:img,sh:sh,zone:zone,kind:'spar'});
   },
   hitDummy(i){
     const d=this.dummies[i];
@@ -1998,7 +2179,9 @@ Object.assign(Play.prototype,{
       d.img.destroy();d.sh.destroy();
       this.obstacles.remove(d.zone,true,true);
       this.puff(d.x,d.y-12,0x7bd35a);
-      FLAGS.bundles=(FLAGS.bundles||0)+1;
+      if(d.kind==='leaf')FLAGS.leaves=(FLAGS.leaves||0)+1;
+      else if(d.kind==='spar')FLAGS.sparHits=(FLAGS.sparHits||0)+1;
+      else FLAGS.bundles=(FLAGS.bundles||0)+1;
       updateHud();
     }
   },
@@ -2067,6 +2250,7 @@ Object.assign(Play.prototype,{
         hop=Math.sin(Math.PI*Math.min(this.pt/T,1))*7;
         li=1;
         if(this.room==='camp'&&this.pt>0.08&&this.pt<0.34)this.checkCatch(f,hop);
+        if(this.room==='field'&&this.pt>0.08&&this.pt<0.34)this.checkMouseCatch(f,hop);
         if(this.pt>=T){this.pouncing=false;this.landGrace=0.15;this.cool=0.2;body.setVelocity(0,0);}
       }
     }else{
@@ -2111,6 +2295,8 @@ Object.assign(Play.prototype,{
     else if(this.room==='tunnel')this.upd_tunnel(px,py);
     else if(this.room==='glade')this.upd_glade(dt,px,py);
     else if(this.room==='hollow')this.upd_hollow(time,px,py);
+    else if(this.room==='field')this.upd_field(dt,px,py);
+    else if(this.room==='border')this.upd_border(dt,px,py);
 
     if(!this.busy&&!DLG.open){
       for(let i=0;i<this.exits.length;i++){
@@ -2147,7 +2333,7 @@ Object.assign(Play.prototype,{
 Object.assign(Play.prototype,{
   /* ---------- camp ---------- */
   upd_camp(time){
-    const open=!!(FLAGS.night||FLAGS.errand)&&!FLAGS.stage;
+    const open=!!(FLAGS.night||FLAGS.errand||FLAGS.trainingDone)&&!FLAGS.stage;
     if(open&&this.gapBlock){this.obstacles.remove(this.gapBlock,true,true);this.gapBlock=null;}
     if(this.gapMarker){
       this.gapMarker.setVisible(open);
@@ -2371,12 +2557,93 @@ Object.assign(Play.prototype,{
       sfx('start');
       banner(FLAGS.night?'The whole forest lies silver under the moon. It is wider than you ever imagined.':'The whole forest rolls out below, green and gold in the sun. It is wider than you ever imagined.',7500);
     }
+  },
+  /* ---------- hunting field: mice ---------- */
+  spawnMouse(x,y){
+    const img=this.t(this.add.image(x,y,'mouse','n0').setOrigin(0.5,1).setDepth(y));
+    const sh=this.t(this.add.image(x,y,'shadow').setScale(0.6/TS,0.5/TS).setDepth(y-0.5));
+    this.mice.push({x:x,y:y,home:{x:x,y:y},state:'graze',t:0,wiggle:0,f:0,img:img,sh:sh});
+  },
+  upd_field(dt,px,py){
+    if(FLAGS.leafActive&&this.dummies.length===0&&!this.busy&&!DLG.open){
+      FLAGS.leafActive=false;
+      this.time.delayedCall(500,()=>{if(!this.dead)dlgOpenScene('scene_c2leafdone');});
+    }
+    if(FLAGS.sparActive&&this.dummies.length===0&&!this.busy&&!DLG.open){
+      FLAGS.sparActive=false;
+      this.time.delayedCall(500,()=>{if(!this.dead)dlgOpenScene('scene_c2spardone');});
+    }
+    this.mice.forEach((m)=>{
+      if(m.state==='caught')return;
+      m.wiggle+=dt;
+      if(m.wiggle>0.35){m.wiggle=0;m.f^=1;m.img.setFrame('n'+(m.state==='flee'?1:m.f));}
+      const d=Math.hypot(px-m.x,py-m.y);
+      if(m.state==='graze'){
+        if(d<40&&this.mag>0.55&&!this.pouncing){
+          m.state='flee';m.t=0;
+          const a=Math.random()*Math.PI*2,r=60+Math.random()*40;
+          m.tx=Math.min(Math.max(m.home.x+Math.cos(a)*r,30),354);
+          m.ty=Math.min(Math.max(m.home.y+Math.sin(a)*r,30),210);
+        }
+      }else if(m.state==='flee'){
+        m.t+=dt;
+        const dx=m.tx-m.x,dy=m.ty-m.y,dist=Math.hypot(dx,dy)||1;
+        const s=Math.min(70*dt,dist);
+        m.x+=dx/dist*s;m.y+=dy/dist*s;
+        m.img.setPosition(Math.round(m.x),Math.round(m.y));
+        m.sh.setPosition(Math.round(m.x),Math.round(m.y));
+        m.img.setDepth(m.y);m.sh.setDepth(m.y-0.5);
+        if(dist<3||m.t>1.2)m.state='graze';
+      }
+    });
+  },
+  checkMouseCatch(f,hop){
+    const px=this.player.x+f[0]*10,py=this.player.y-4-hop*0.8+f[1]*6;
+    for(let i=0;i<this.mice.length;i++){
+      const m=this.mice[i];
+      if(m.state==='caught')continue;
+      if(Math.hypot(m.x-px,m.y-py)<18){this.catchMouse(i);break;}
+    }
+  },
+  catchMouse(i){
+    const m=this.mice[i];
+    m.state='caught';
+    m.img.destroy();m.sh.destroy();
+    this.puff(m.x,m.y-4,0xd9c19a);
+    sfx('catch');
+    FLAGS.preyCount=(FLAGS.preyCount||0)+1;
+    updateHud();
+    if(!FLAGS.firstHunt){
+      FLAGS.firstHunt=true;
+      this.time.delayedCall(500,()=>{if(!this.dead)dlgOpenScene('scene_c2catch');});
+    }else if(FLAGS.patrolActive&&!FLAGS.patrolDone&&FLAGS.preyCount>=4){
+      FLAGS.patrolDone=true;
+      this.time.delayedCall(500,()=>{if(!this.dead)dlgOpenScene('scene_c2patrol');});
+    }else{
+      banner(FLAGS.patrolActive?'Caught! '+(4-FLAGS.preyCount)+' more for the fresh-kill pile.':'Another catch! '+FLAGS.preyCount+' prey so far.',3000);
+      this.time.delayedCall(2200,()=>{if(!this.dead&&this.room==='field')this.respawnMouse(i);});
+    }
+  },
+  respawnMouse(i){
+    const m=this.mice[i];
+    if(!m)return;
+    const x=m.home.x,y=m.home.y;
+    const img=this.t(this.add.image(x,y,'mouse','n0').setOrigin(0.5,1).setDepth(y));
+    const sh=this.t(this.add.image(x,y,'shadow').setScale(0.6/TS,0.5/TS).setDepth(y-0.5));
+    this.mice[i]={x:x,y:y,home:{x:x,y:y},state:'graze',t:0,wiggle:0,f:0,img:img,sh:sh};
+  },
+  /* ---------- the border ---------- */
+  upd_border(dt,px,py){
+    if(FLAGS.metFinch&&!FLAGS.borderDone&&!DLG.open&&!this.busy){
+      FLAGS.borderDone=true;
+      this.time.delayedCall(400,()=>{if(!this.dead)dlgOpenScene('scene_c2border');});
+    }
   }
 });
 
 /* MODULE src_60_saves_screens.js: saved games, the slot screen, starting and leaving a game, and the final button wiring. */
 /* ---------- saved games ---------- */
-const GAME_VERSION='0.8.1';
+const GAME_VERSION='0.11.0';
 const SLOTN=5;
 let slot=0,LOADED=null;
 function readSlot(i){try{const s=localStorage.getItem('forestkit.slot.'+i);return s?JSON.parse(s):null;}catch(e){return null;}}

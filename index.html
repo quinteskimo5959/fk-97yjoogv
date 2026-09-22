@@ -864,11 +864,20 @@ const SCRIPTS={
   }},
   scene_c3alarm:{nodes:{
     a:{who:null,text:"A yowl rips through the dark. Paws crash through the fern gap, too many to be Clanmates.",next:'b'},
-    b:{who:function(c){return c.flags.mentor;},fx:'raidstart',text:"ShadowClan! Drive them out!"}
+    b:{who:function(c){return c.flags.mentor;},text:"We need paws on the fight, and paws to get the kits somewhere safe! What will you do?",choices:[
+      {t:"Fight!",go:'fightgo'},
+      {t:"Get the kits to safety!",go:'protectgo'}
+    ]},
+    fightgo:{who:function(c){return c.flags.mentor;},fx:'raidstart',text:"Go! Drive them out!"},
+    protectgo:{who:function(c){return c.flags.mentor;},fx:'protectstart',text:"Go! Get Wrenpaw somewhere safe!"}
   }},
   scene_c3fightdone:{onEnd:'c3fightdoneEnd',nodes:{
     a:{who:function(c){return c.flags.mentor;},text:"They are running for the gap. Good work, keeping your head like that.",next:'b'},
     b:{who:null,text:"By the fresh-kill pile, a muddy paw print sits pressed into the dirt. You will remember it."}
+  }},
+  scene_c3protectdone:{onEnd:'c3protectdoneEnd',nodes:{
+    a:{who:function(c){return c.flags.mentor;},text:"Wrenpaw is safe. Well done keeping calm out there.",next:'b'},
+    b:{who:null,text:"Behind the brambles, you catch a whiff of something unfamiliar, a hungry, pine-sharp scent. You will remember it."}
   }},
   scene_c3away:{onEnd:'c3awayDone',nodes:{
     a:{who:null,text:"Far off, a yowl rings out from the direction of camp!",next:'b'},
@@ -1669,7 +1678,7 @@ Object.assign(Play.prototype,{
     this.t2Group.clear(true,true);this.t2Collider.active=false;
     this.moths=[];this.npcs=[];this.twigs=[];this.exits=[];this.fireflies=[];this.mossObjs=[];this.dummies=[];this.mice=[];this.raiders=[];
     this.badger=null;this.gapBlock=null;this.gapMarker=null;this.pile=null;
-    if(this.follower){this.follower.img.destroy();this.follower.sh.destroy();this.follower=null;}
+    if(this.follower)this.stopFollower();
     this.trail=[];
   },
   enterRoom(name,sx,sy){
@@ -1819,11 +1828,11 @@ Object.assign(Play.prototype,{
     this.campCast().forEach((d)=>{
       const el=d.elev||0,big=this.isBig(d);
       const img=this.t(this.add.image(d.x,d.y-el,'npc_'+d.id+(big?'_big':''),'f0').setOrigin(0.5,big?23/24:14/16).setDepth(d.y+(el?300:0)));
-      this.t(this.add.image(d.x,d.y-el,'shadow').setScale((big?1.3:1)/TS,1/TS).setDepth(d.y+(el?300:0)-0.5));
-      this.addSolid(d.x,d.y-1,8,6);
+      const sh=this.t(this.add.image(d.x,d.y-el,'shadow').setScale((big?1.3:1)/TS,1/TS).setDepth(d.y+(el?300:0)-0.5));
+      const zone=this.addSolid(d.x,d.y-1,8,6);
       let bubble=null;
       if(d.talk!==false&&d.script)bubble=this.t(this.add.image(d.x,d.y-(big?34:24),'bubble').setDepth(2000));
-      this.npcs.push({d:d,img:img,bubble:bubble,big:big,sheet:big?this.npcSheetsBig[d.id]:this.npcSheets[d.id]});
+      this.npcs.push({d:d,img:img,sh:sh,zone:zone,bubble:bubble,big:big,sheet:big?this.npcSheetsBig[d.id]:this.npcSheets[d.id]});
     });
     if(FLAGS.training==='active')this.spawnDummies();
     if(FLAGS.stage==='c1'||FLAGS.stage==='c2')this.dir='up';
@@ -2011,15 +2020,22 @@ Object.assign(Play.prototype,{
 
 /* MODULE src_53_flow.js: Play methods for moving between rooms, cutscene effects, story endings, and the following cat. */
 Object.assign(Play.prototype,{
-  /* ---------- follower (Burrkit, on the night path) ---------- */
+  /* ---------- follower (Burrkit on the night path, Wrenpaw on the protect role) ---------- */
+  startFollower(id,x,y){
+    const big=this.isBig(NPCS.find(function(n){return n.id===id;}));
+    const img=this.add.image(x,y,'npc_'+id+(big?'_big':''),'f0').setOrigin(0.5,big?23/24:14/16);
+    const sh=this.add.image(x,y,'shadow');
+    this.follower={img:img,sh:sh};
+    this.fpos={x:x,y:y,h:0,dir:'right',li:0};
+    this.trail=[];for(let i=0;i<18;i++)this.trail.push({x:x,y:y,h:0,dir:this.dir,li:0});
+  },
+  stopFollower(){
+    if(this.follower){this.follower.img.destroy();this.follower.sh.destroy();this.follower=null;}
+    this.trail=[];
+  },
   setupFollower(){
     if(!FLAGS.night||this.room==='camp')return;
-    const px=this.player.x,py=this.player.y;
-    const img=this.add.image(px-10,py,'npc_kit','f0').setOrigin(0.5,14/16);
-    const sh=this.add.image(px-10,py,'shadow');
-    this.follower={img:img,sh:sh};
-    this.fpos={x:px-10,y:py,h:0,dir:'right',li:0};
-    for(let i=0;i<18;i++)this.trail.push({x:px,y:py,h:0,dir:this.dir,li:0});
+    this.startFollower('kit',this.player.x-10,this.player.y);
   },
   updateFollower(px,py,hop,li){
     this.trail.push({x:px,y:py,h:hop,dir:this.dir,li:li});
@@ -2085,11 +2101,14 @@ Object.assign(Play.prototype,{
       this.transition('camp',256,196,'A few quiet days pass in camp...');
     }else if(e==='c3fightdoneEnd'){
       FLAGS.raidRole='fight';
-      banner('Chapter 3, the fight, is done. Next up: the protect role (not built yet).',9000);
+      banner('Chapter 3, the fight, is done.',6000);
+    }else if(e==='c3protectdoneEnd'){
+      FLAGS.raidRole='protect';
+      banner('Chapter 3, the raid, is now fully built! All three roles are done.',9000);
     }else if(e==='c3awayDone'){
       FLAGS.raidRole='away';
       this.transition('camp',256,196,'You hurry back to camp...');
-      this.time.delayedCall(1700,()=>{if(!this.dead)banner('Chapter 3, the away role, is done. Next up: the protect role (not built yet).',9000);});
+      this.time.delayedCall(1700,()=>{if(!this.dead)banner('Chapter 3, the away role, is done.',6000);});
     }
   },
   fx(spec){
@@ -2128,6 +2147,21 @@ Object.assign(Play.prototype,{
       this.spawnSparDummy();
     }else if(k==='raidstart'){
       this.spawnRaiders();
+    }else if(k==='protectstart'){
+      FLAGS.protectActive=true;
+      const wi=this.npcs.findIndex(function(n){return n.d.id==='wren';});
+      let wx=172,wy=212;
+      if(wi>=0){
+        const w=this.npcs[wi];
+        wx=w.d.x;wy=w.d.y;
+        if(w.bubble)w.bubble.destroy();
+        w.img.destroy();
+        if(w.sh)w.sh.destroy();
+        if(w.zone)this.obstacles.remove(w.zone,true,true);
+        this.npcs.splice(wi,1);
+      }
+      this.startFollower('wren',wx,wy);
+      banner('Lead Wrenpaw to the bramble den and keep her safe!',6000);
     }
   },
   onPending(p){
@@ -2440,6 +2474,14 @@ Object.assign(Play.prototype,{
       if(FLAGS.raidersLeft<=0&&!this.busy&&!DLG.open){
         FLAGS.raidActive=false;
         this.time.delayedCall(500,()=>{if(!this.dead)dlgOpenScene('scene_c3fightdone');});
+      }
+    }
+    if(FLAGS.protectActive&&this.follower){
+      const px=this.player.x,py=this.player.y;
+      if(Math.hypot(px-208,py-110)<24&&!this.busy&&!DLG.open){
+        FLAGS.protectActive=false;
+        this.stopFollower();
+        this.time.delayedCall(400,()=>{if(!this.dead)dlgOpenScene('scene_c3protectdone');});
       }
     }
   },
@@ -2763,7 +2805,7 @@ Object.assign(Play.prototype,{
 
 /* MODULE src_60_saves_screens.js: saved games, the slot screen, starting and leaving a game, and the final button wiring. */
 /* ---------- saved games ---------- */
-const GAME_VERSION='0.13.1';
+const GAME_VERSION='0.14.0';
 const SLOTN=5;
 let slot=0,LOADED=null;
 function readSlot(i){try{const s=localStorage.getItem('forestkit.slot.'+i);return s?JSON.parse(s):null;}catch(e){return null;}}

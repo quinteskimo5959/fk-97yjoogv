@@ -818,7 +818,7 @@ const SCRIPTS={
   }},
   scene_c2catch:{onEnd:'c2catchDone',nodes:{
     a:{who:function(c){return c.flags.mentor;},text:"Nicely caught! That is real prey for the Clan.",next:'b'},
-    b:{who:function(c){return c.flags.mentor;},text:function(c){return "That is your first catch, "+c.paw+". A hunting patrol comes next, once it is built.";}}
+    b:{who:function(c){return c.flags.mentor;},text:function(c){return "That is your first catch, "+c.paw+". A hunting patrol comes next.";}}
   }},
   scene_c2patrol:{onEnd:'c2patrolDone',nodes:{
     a:{who:function(c){return c.flags.mentor;},text:"Four catches! The fresh-kill pile looks much better tonight.",next:'b'},
@@ -853,6 +853,28 @@ const SCRIPTS={
     ]},
     soon:{who:function(c){return c.flags.mentor;},text:"Soon. That path is not ready to teach yet, but I will remember you asked."},
     warrior:{who:function(c){return c.flags.mentor;},text:"Good. Then let's keep sharpening those claws."}
+  }},
+  scene_c3fork:{nodes:{
+    a:{who:function(c){return c.flags.mentor;},text:"Tomorrow's dawn patrol needs another cat. Will you join it, or stay and rest?",choices:[
+      {t:"I'll join the patrol.",go:'joingo',set:{pending:'patrol3'}},
+      {t:"I'll stay and rest.",go:'staygo',set:{pending:'stay3'}}
+    ]},
+    joingo:{who:function(c){return c.flags.mentor;},text:"Good. Meet me at first light."},
+    staygo:{who:function(c){return c.flags.mentor;},text:"Rest well, then."}
+  }},
+  scene_c3alarm:{nodes:{
+    a:{who:null,text:"A yowl rips through the dark. Paws crash through the fern gap, too many to be Clanmates.",next:'b'},
+    b:{who:function(c){return c.flags.mentor;},fx:'raidstart',text:"ShadowClan! Drive them out!"}
+  }},
+  scene_c3fightdone:{onEnd:'c3fightdoneEnd',nodes:{
+    a:{who:function(c){return c.flags.mentor;},text:"They are running for the gap. Good work, keeping your head like that.",next:'b'},
+    b:{who:null,text:"By the fresh-kill pile, a muddy paw print sits pressed into the dirt. You will remember it."}
+  }},
+  scene_c3away:{onEnd:'c3awayDone',nodes:{
+    a:{who:null,text:"Far off, a yowl rings out from the direction of camp!",next:'b'},
+    b:{who:null,text:"You run, paws pounding, but by the time you reach the gap, all has gone quiet again.",next:'c'},
+    c:{who:function(c){return c.flags.mentor;},text:"You missed it. ShadowClan broke in and took what they could from the fresh-kill pile.",next:'d'},
+    d:{who:null,text:"Near the gap, a trail of broken fern stems leads off toward the ShadowClan border. You will remember it."}
   }},
   finch:{start:'hi',nodes:{
     hi:{text:"Oh! I did not see you there. I am Finchpaw, from ShadowClan.",next:'a'},
@@ -901,7 +923,10 @@ const NPCS=[
   {id:'ripple',name:'Ripplefoot',role:'Warrior',x:288,y:150,cfg:{fur:6,pat:1,eye:2},pitch:349,big:true},
   {id:'flint',name:'Flintwhisker',role:'Warrior',x:340,y:226,cfg:{fur:5,pat:0,eye:3},script:'flint',pitch:294,big:true},
   {id:'sun',name:'Sunfern',role:'Warrior',x:340,y:226,cfg:{fur:0,pat:3,eye:1},script:'sun',pitch:440,big:true},
-  {id:'finch',name:'Finchpaw',role:'Apprentice',x:300,y:100,cfg:{fur:5,pat:1,eye:2},script:'finch',pitch:500}
+  {id:'finch',name:'Finchpaw',role:'Apprentice',x:300,y:100,cfg:{fur:5,pat:1,eye:2},script:'finch',pitch:500},
+  {id:'raider1',name:'a ShadowClan cat',role:'Raider',x:0,y:0,cfg:{fur:7,pat:0,eye:2},pitch:300,big:true},
+  {id:'raider2',name:'a ShadowClan cat',role:'Raider',x:0,y:0,cfg:{fur:6,pat:1,eye:0},pitch:300,big:true},
+  {id:'raider3',name:'a ShadowClan cat',role:'Raider',x:0,y:0,cfg:{fur:5,pat:1,eye:2},pitch:300,big:true}
 ];
 
 /* MODULE src_41_dialogue.js: the dialogue box engine (typing, choices, speakers, scenes). */
@@ -1203,7 +1228,7 @@ class Play extends Phaser.Scene{
     this.events.once('destroy',()=>{this.dead=true;});
     this.makeCommonTextures();
     this.obstacles=this.physics.add.staticGroup();
-    this.roomObjs=[];this.moths=[];this.npcs=[];this.twigs=[];this.exits=[];this.fireflies=[];this.mossObjs=[];this.mice=[];
+    this.roomObjs=[];this.moths=[];this.npcs=[];this.twigs=[];this.exits=[];this.fireflies=[];this.mossObjs=[];this.mice=[];this.raiders=[];
     this.follower=null;this.trail=[];this.fpos=null;this.badger=null;this.gapBlock=null;this.gapMarker=null;
     this.busy=false;this.room='';this.mag=0;this.splashCool=0;
     this.level=0;this.elevVis=0;this.climb=null;this.pile=null;this.landGrace=0;this.gladeFrom='left';this.pendingScene=null;
@@ -1236,6 +1261,7 @@ class Play extends Phaser.Scene{
     LOADED=null;
     this.saveT=0;
     this.enterRoom(st.room,st.x,st.y);
+    if(this.pendingScene)this.time.delayedCall(300,()=>{if(!this.dead)this.startScene();});
   }
   isBig(d){return !!(d.big||(d.id==='wren'&&FLAGS.wrenPaw));}
   sheetFor(id){
@@ -1250,6 +1276,7 @@ class Play extends Phaser.Scene{
     return z;
   }
   treeVis(x,y){this.t(this.add.image(x,y,'tree').setOrigin(0.5,1).setDepth(y));}
+  pineVis(x,y){this.t(this.add.image(x,y,'pine').setOrigin(0.5,1).setDepth(y));}
   addTree(x,y){this.treeVis(x,y);this.addSolid(x,y-3,10,6);}
   addBush(x,y){
     this.t(this.add.image(x,y,'bush').setOrigin(0.5,1).setDepth(y));
@@ -1293,6 +1320,18 @@ Object.assign(Play.prototype,{
     blob(tc,20.5,20,3,'#264d22');
     leafDots(tc,mulberry32(5),15,14,11.5,'#78c25a','#224a1e',150);
     T.addCanvas('tree',cv);
+    // pine tree, for ShadowClan's pines
+    cv=canvasOf(32,40);tc=cv.getContext('2d');
+    tc.fillStyle='#4a3420';tc.fillRect(15,33,3,7);
+    const pineTier=function(cx,topY,halfW,h,color){
+      tc.fillStyle=color;
+      tc.beginPath();tc.moveTo(cx,topY);tc.lineTo(cx-halfW,topY+h);tc.lineTo(cx+halfW,topY+h);tc.closePath();tc.fill();
+    };
+    pineTier(16,21,11,13,'#1f4020');
+    pineTier(16,12,9,12,'#2a5228');
+    pineTier(16,4,7,10,'#33582f');
+    leafDots(tc,mulberry32(6),16,20,10,'#3f6c3a','#173318',60);
+    T.addCanvas('pine',cv);
     // bush
     cv=canvasOf(24,16);tc=cv.getContext('2d');
     blob(tc,12,9,7,'#2f6229');blob(tc,7,9,5,'#3d7833');blob(tc,17,9,5,'#3d7833');blob(tc,11,7,4,'#559a3e');
@@ -1609,12 +1648,26 @@ Object.assign(Play.prototype,{
     const bubble=this.t(this.add.image(x,y-(big?34:24),'bubble').setDepth(2000));
     this.npcs.push({d:d,img:img,bubble:bubble,big:big,sheet:big?this.npcSheetsBig[id]:this.npcSheets[id]});
   },
+  /* ---------- raiders (Chapter 3) ---------- */
+  spawnRaider(id,x,y){
+    const img=this.t(this.add.image(x,y,'npc_'+id+'_big','f0').setOrigin(0.5,23/24).setDepth(y));
+    const sh=this.t(this.add.image(x,y,'shadow').setScale(1.3/TS,1/TS).setDepth(y-0.5));
+    this.raiders.push({id:id,x:x,y:y,home:{x:x,y:y},state:'prowl',t:0,img:img,sh:sh});
+  },
+  spawnRaiders(){
+    FLAGS.raidActive=true;
+    const ids=['raider1','raider2','raider3'];
+    const spots=[[200,230],[330,225],[256,165]];
+    ids.forEach((id,i)=>{this.spawnRaider(id,spots[i][0],spots[i][1]);});
+    FLAGS.raidersLeft=ids.length;
+    banner('Raiders in camp! Creep close, then Swipe. Rushing in gets you knocked back.',7000);
+  },
   clearRoom(){
     this.roomObjs.forEach(function(o){if(o&&o.destroy)o.destroy();});
     this.roomObjs=[];
     this.obstacles.clear(true,true);
     this.t2Group.clear(true,true);this.t2Collider.active=false;
-    this.moths=[];this.npcs=[];this.twigs=[];this.exits=[];this.fireflies=[];this.mossObjs=[];this.dummies=[];this.mice=[];
+    this.moths=[];this.npcs=[];this.twigs=[];this.exits=[];this.fireflies=[];this.mossObjs=[];this.dummies=[];this.mice=[];this.raiders=[];
     this.badger=null;this.gapBlock=null;this.gapMarker=null;this.pile=null;
     if(this.follower){this.follower.img.destroy();this.follower.sh.destroy();this.follower=null;}
     this.trail=[];
@@ -1653,6 +1706,13 @@ Object.assign(Play.prototype,{
   roomEntered(name){
     const night=!!FLAGS.night;
     const say=function(who,text){banner((who?who+': ':'')+text,6000);};
+    if(name==='camp'&&FLAGS.chapter2Done&&!FLAGS.raidForkDone){
+      FLAGS.raidForkDone=true;
+      this.pendingScene='c3fork';
+    }else if(name==='camp'&&FLAGS.raidAway===false&&!FLAGS.raidStarted){
+      FLAGS.raidStarted=true;
+      this.pendingScene='c3alarm';
+    }
     if(name==='tunnel'&&!FLAGS.seenTunnel){
       FLAGS.seenTunnel=1;
       say(night?'Burrkit':'',night?'A stream! Tap Pounce to leap across the stones.':'A stream! Tap Pounce to leap across the stones.');
@@ -1668,6 +1728,9 @@ Object.assign(Play.prototype,{
     }else if(name==='field'&&FLAGS.borderDone&&!FLAGS.seenSwipe){
       FLAGS.seenSwipe=1;
       this.pendingScene='c2swipe';
+    }else if(name==='field'&&FLAGS.raidAway&&!FLAGS.raidStarted){
+      FLAGS.raidStarted=true;
+      this.pendingScene='c3away';
     }else if(name==='border'&&!FLAGS.seenBorder){
       FLAGS.seenBorder=1;
       this.pendingScene='c2borderstart';
@@ -1812,7 +1875,10 @@ Object.assign(Play.prototype,{
     });
     this.t(this.add.image(0,0,key).setOrigin(0,0).setDepth(-10));
     this.addSolid(W/2,28,W,56);this.addSolid(W/2,196,W,56);
-    for(let x=10;x<W;x+=34){this.treeVis(x+((x*7)%9),50);this.treeVis(x+17,206);}
+    for(let x=10;x<W;x+=34){
+      const tx1=x+((x*7)%9);if(tx1<118||tx1>280)this.treeVis(tx1,50);
+      const tx2=x+17;if(tx2<118||tx2>280)this.treeVis(tx2,206);
+    }
     for(let x=6;x<W;x+=18){
       this.t(this.add.image(x,58+((x*3)%5),'fern').setOrigin(0.5,1).setDepth(58));
       this.t(this.add.image(x+9,178+((x*5)%6),'fern').setOrigin(0.5,1).setDepth(178));
@@ -1935,7 +2001,7 @@ Object.assign(Play.prototype,{
     this.addSolid(W/2,20,W,40);this.addSolid(W/2,H-20,W,40);
     this.addSolid(W-8,H/2,16,H);
     for(let x=14;x<200;x+=48)this.treeVis(x,40+((x*3)%14));
-    for(let x=200;x<W;x+=26){this.treeVis(x+((x*5)%9),36);this.treeVis(x+13,H-30);}
+    for(let x=200;x<W;x+=26){this.pineVis(x+((x*5)%9),36);this.pineVis(x+13,H-30);}
     // a marker post far off, near the top: a hint of Twolegs beyond the trees
     [[70,26],[86,26],[102,26]].forEach((p)=>{this.t(this.add.rectangle(p[0],p[1],3,10,0x8a8a86,0.55).setDepth(-6));});
     this.spawnTalker('finch',300,100);
@@ -2016,7 +2082,14 @@ Object.assign(Play.prototype,{
       this.time.delayedCall(500,()=>{if(!this.dead)dlgOpenScene('scene_c2medoffer');});
     }else if(e==='c2medofferEnd'){
       FLAGS.chapter2Done=true;
-      banner('Chapter 2 built so far is complete! Next up: Chapter 3, the raid (not built yet).',9000);
+      this.transition('camp',256,196,'A few quiet days pass in camp...');
+    }else if(e==='c3fightdoneEnd'){
+      FLAGS.raidRole='fight';
+      banner('Chapter 3, the fight, is done. Next up: the protect role (not built yet).',9000);
+    }else if(e==='c3awayDone'){
+      FLAGS.raidRole='away';
+      this.transition('camp',256,196,'You hurry back to camp...');
+      this.time.delayedCall(1700,()=>{if(!this.dead)banner('Chapter 3, the away role, is done. Next up: the protect role (not built yet).',9000);});
     }
   },
   fx(spec){
@@ -2053,6 +2126,8 @@ Object.assign(Play.prototype,{
       this.puff(x,y-14,0xffc6d6);
     }else if(k==='sparstart'){
       this.spawnSparDummy();
+    }else if(k==='raidstart'){
+      this.spawnRaiders();
     }
   },
   onPending(p){
@@ -2066,6 +2141,8 @@ Object.assign(Play.prototype,{
     }else if(p==='night'){FLAGS.night=true;this.transition('camp',this.player.x,this.player.y,'That night...');}
     else if(p==='morning'){FLAGS.morning=true;this.transition('camp',this.player.x,this.player.y,'The next morning...');}
     else if(p==='leafpractice'){this.spawnLeafPiles();banner('Swipe all 3 leaf piles. Face one and tap Swipe.',7000);}
+    else if(p==='patrol3'){FLAGS.raidAway=true;this.transition('field',24,120,'The next morning, you set out with the dawn patrol...');}
+    else if(p==='stay3'){FLAGS.raidAway=false;this.transition('camp',256,196,'You stay in camp to rest...');}
   }
 });
 
@@ -2136,6 +2213,12 @@ Object.assign(Play.prototype,{
       for(let i=0;i<this.moths.length;i++){
         const m=this.moths[i];
         if(Math.hypot(m.gx-cx,m.gy-10-(this.player.y-6))<20){this.catchMoth(i);break;}
+      }
+      if(FLAGS.raidActive){
+        for(let i=0;i<this.raiders.length;i++){
+          const r=this.raiders[i];
+          if(r.state==='prowl'&&Math.hypot(r.x-cx,r.y-cy)<24){this.hitRaider(i);break;}
+        }
       }
     }
   },
@@ -2347,6 +2430,43 @@ Object.assign(Play.prototype,{
       FLAGS.gapHint=1;
       banner('The ferns on the east side of camp are open. Head that way.',6000);
     }
+    if(FLAGS.raidActive){
+      const px=this.player.x,py=this.player.y;
+      this.raiders.forEach((r)=>{
+        if(r.state==='prowl'&&Math.hypot(px-r.x,py-r.y)<32&&this.mag>0.55&&!this.pouncing&&!this.busy){
+          this.raiderSwipe(r);
+        }
+      });
+      if(FLAGS.raidersLeft<=0&&!this.busy&&!DLG.open){
+        FLAGS.raidActive=false;
+        this.time.delayedCall(500,()=>{if(!this.dead)dlgOpenScene('scene_c3fightdone');});
+      }
+    }
+  },
+  hitRaider(i){
+    const r=this.raiders[i];
+    r.state='gone';
+    sfx('hit');
+    this.puff(r.x,r.y-14,0xb8a15a);
+    this.cameras.main.shake(120,0.006);
+    r.img.destroy();r.sh.destroy();
+    FLAGS.raidersLeft=(FLAGS.raidersLeft||0)-1;
+    banner(FLAGS.raidersLeft>0?'One driven off! '+FLAGS.raidersLeft+' left.':'The last raider runs for the gap!',2600);
+  },
+  raiderSwipe(r){
+    r.state='cool';r.t=0;
+    sfx('growl');
+    this.busy=true;
+    this.player.body.setVelocity(0,0);
+    banner('A raider swipes! You tumble back.',2600);
+    this.cameras.main.shake(180,0.01);
+    this.time.delayedCall(500,()=>{
+      if(this.dead)return;
+      this.player.body.reset(256,196);
+      this.player.body.setVelocity(0,0);
+      this.busy=false;
+    });
+    this.time.delayedCall(2200,()=>{if(!this.dead&&r.state==='cool')r.state='prowl';});
   },
   spawnMoth(){
     let x,y,n=0;
@@ -2643,7 +2763,7 @@ Object.assign(Play.prototype,{
 
 /* MODULE src_60_saves_screens.js: saved games, the slot screen, starting and leaving a game, and the final button wiring. */
 /* ---------- saved games ---------- */
-const GAME_VERSION='0.11.0';
+const GAME_VERSION='0.13.1';
 const SLOTN=5;
 let slot=0,LOADED=null;
 function readSlot(i){try{const s=localStorage.getItem('forestkit.slot.'+i);return s?JSON.parse(s):null;}catch(e){return null;}}

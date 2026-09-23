@@ -1980,7 +1980,6 @@ Object.assign(Play.prototype,{
     });
     this.t(this.add.image(0,0,key).setOrigin(0,0).setDepth(-10));
     this.addSolid(W/2,10,W,20);this.addSolid(W/2,H-10,W,20);
-    this.addSolid(10,H/2,20,H);this.addSolid(W-10,H/2,20,H);
     for(let x=16;x<W;x+=40){this.treeVis(x+((x*5)%9),24);this.treeVis(x+18,H-18);}
     [[60,120],[150,90],[240,140],[320,100]].forEach((p)=>{this.t(this.add.image(p[0],p[1],'fern').setOrigin(0.5,1).setDepth(p[1]));});
     this.mice=[];
@@ -2805,7 +2804,7 @@ Object.assign(Play.prototype,{
 
 /* MODULE src_60_saves_screens.js: saved games, the slot screen, starting and leaving a game, and the final button wiring. */
 /* ---------- saved games ---------- */
-const GAME_VERSION='0.14.0';
+const GAME_VERSION='0.14.1';
 const SLOTN=5;
 let slot=0,LOADED=null;
 function readSlot(i){try{const s=localStorage.getItem('forestkit.slot.'+i);return s?JSON.parse(s):null;}catch(e){return null;}}
